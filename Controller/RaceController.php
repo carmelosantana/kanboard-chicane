@@ -4,11 +4,14 @@ namespace Kanboard\Plugin\Chicane\Controller;
 use Kanboard\Controller\BaseController;
 use Kanboard\Plugin\Chicane\Model\RaceGate;
 use Kanboard\Plugin\Chicane\Model\RaceSettings;
+use Kanboard\Plugin\Chicane\Model\RaceStateModel;
 
 // Members' race view. Not in any access map, so Kanboard's project default role (viewer) gates it:
 // reaching an action means the user is a member of project_id.
 class RaceController extends BaseController
 {
+    use JsonResponder;
+
     public function show(): void
     {
         $project = $this->allowedProject();
@@ -25,16 +28,17 @@ class RaceController extends BaseController
         ]));
     }
 
-    // Stub until Task 4.
     public function state(): void
     {
-        if ($this->allowedProject() === null) {
+        $project = $this->allowedProject();
+        if ($project === null) {
             return;
         }
-        $this->response->withContentType('application/json');
-        $this->response->withoutCache();
-        $this->response->withBody('{}');
-        $this->response->send();
+        $projectId = (int) $project['id'];
+        $windowDays = (new RaceSettings($this->container))->get($projectId)['window_days'];
+        $model = new RaceStateModel($this->container);
+        $state = $model->build($projectId, $windowDays);
+        $this->sendJson($state, $model->etag($state));
     }
 
     private function allowedProject(): ?array

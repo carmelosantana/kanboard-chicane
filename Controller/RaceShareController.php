@@ -3,10 +3,13 @@ namespace Kanboard\Plugin\Chicane\Controller;
 
 use Kanboard\Controller\BaseController;
 use Kanboard\Plugin\Chicane\Model\RaceSettings;
+use Kanboard\Plugin\Chicane\Model\RaceStateModel;
 
 // Public share-token routes (APP_PUBLIC in Plugin.php). Unknown token and non-shared visibility both 404.
 class RaceShareController extends BaseController
 {
+    use JsonResponder;
+
     public function show(): void
     {
         $token = $this->token();
@@ -24,27 +27,31 @@ class RaceShareController extends BaseController
         ]));
     }
 
-    // Stub until Task 4.
+    // Map-only redaction lands in Task 5; until then map_only gets an empty object, never the full state.
     public function state(): void
     {
-        $this->emptyJson();
+        $token = $this->token();
+        $mode = $this->allowedMode($token);
+        if ($mode === null) {
+            return;
+        }
+        if ($mode !== 'full') {
+            $this->sendJson([]);
+            return;
+        }
+        $settings = new RaceSettings($this->container);
+        $projectId = (int) $settings->projectIdForToken($token);
+        $model = new RaceStateModel($this->container);
+        $state = $model->build($projectId, $settings->get($projectId)['window_days']);
+        $this->sendJson($state, $model->etag($state));
     }
 
     // Stub until Task 5.
     public function summary(): void
     {
-        $this->emptyJson();
-    }
-
-    private function emptyJson(): void
-    {
-        if ($this->allowedMode($this->token()) === null) {
-            return;
+        if ($this->allowedMode($this->token()) !== null) {
+            $this->sendJson([]);
         }
-        $this->response->withContentType('application/json');
-        $this->response->withoutCache();
-        $this->response->withBody('{}');
-        $this->response->send();
     }
 
     private function token(): string
