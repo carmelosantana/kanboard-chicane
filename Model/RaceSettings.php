@@ -60,10 +60,13 @@ class RaceSettings extends Base
         return $meta === [] || $this->projectMetadataModel->save($projectId, $meta);
     }
 
+    // Throws when the write fails: the token gates public access, so an unpersisted one is never returned.
     public function rotateToken(int $projectId): string
     {
         $token = bin2hex(random_bytes(32));
-        $this->projectMetadataModel->save($projectId, [self::META_TOKEN => $token]);
+        if (! $this->projectMetadataModel->save($projectId, [self::META_TOKEN => $token])) {
+            throw new \RuntimeException('Unable to save the Chicane share token for project '.$projectId);
+        }
         return $token;
     }
 

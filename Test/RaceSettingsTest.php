@@ -63,4 +63,25 @@ class RaceSettingsTest extends Base
         $this->assertSame($this->pid, $this->settings->projectIdForToken($new));
         $this->assertNull($this->settings->projectIdForToken(''));
     }
+
+    // A failed write must not be reported as a rotated (or lazily created) token.
+    public function testFailedTokenWriteThrowsOnRotate(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->failingSettings()->rotateToken($this->pid);
+    }
+
+    public function testFailedTokenWriteThrowsOnLazyCreate(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->failingSettings()->get($this->pid);
+    }
+
+    private function failingSettings(): RaceSettings
+    {
+        $this->container['projectMetadataModel'] = new class($this->container) extends \Kanboard\Model\ProjectMetadataModel {
+            public function save($entity_id, array $values) { return false; }
+        };
+        return new RaceSettings($this->container);
+    }
 }

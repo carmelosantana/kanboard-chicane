@@ -34,8 +34,13 @@ class RaceSettingsController extends BaseController
     public function rotate(): void
     {
         $project = $this->postedProject();
-        (new RaceSettings($this->container))->rotateToken((int) $project['id']);
-        $this->flash->success(t('Share link replaced. The old link no longer works.'));
+        try {
+            (new RaceSettings($this->container))->rotateToken((int) $project['id']);
+            $this->flash->success(t('Share link replaced. The old link no longer works.'));
+        } catch (\RuntimeException $e) {
+            $this->logger->error($e->getMessage());
+            $this->flash->failure(t('Unable to replace the share link. The current link still works.'));
+        }
         $this->redirectToShow($project);
     }
 
