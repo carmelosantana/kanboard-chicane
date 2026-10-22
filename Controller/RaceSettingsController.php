@@ -15,6 +15,7 @@ class RaceSettingsController extends BaseController
             'project' => $project,
             'settings' => (new RaceSettings($this->container))->get((int) $project['id']),
             'visibilities' => RaceSettings::VISIBILITY,
+            'units' => RaceSettings::UNITS,
             'title' => t('Race track'),
         ]));
     }
@@ -26,6 +27,7 @@ class RaceSettingsController extends BaseController
         $ok = (new RaceSettings($this->container))->save((int) $project['id'], [
             'visibility' => $values['visibility'] ?? '',
             'window_days' => $values['window_days'] ?? '',
+            'units' => $values['units'] ?? '',
         ]);
         $ok ? $this->flash->success(t('Race track settings saved.')) : $this->flash->failure(t('Unable to save the race track settings.'));
         $this->redirectToShow($project);

@@ -209,3 +209,18 @@ test('progress matches the PHP RaceSummary frozen total', () => {
   assert.equal(Math.round(C.build(small()).progress * 1000) / 10, 42.9);
   assert.equal(C.build(small()).totalUnits - C.build(small()).doneUnits, 4);
 });
+
+// RaceSummaryTest pins the same numbers on the PHP side: the summary and the HUD must agree per unit mode.
+test('unit totals match the PHP summary in both modes', () => {
+  const units = (state, mode) => { const t = C.build(state, { mode }); return [t.totalUnits, t.doneUnits]; };
+  assert.deepEqual(units(small(), 'subtask'), [7, 3]);
+  assert.deepEqual(units(small(), 'complexity'), [7, 5]);
+
+  const s = small();
+  s.tasks = [
+    Object.assign({}, s.tasks[0], { id: 1, open: false, score: 5, subtasks: [{ status: 0, position: 1, user_id: 1 }] }),
+    Object.assign({}, s.tasks[1], { id: 2, open: true, score: 4, subtasks: [{ status: 2, position: 1, user_id: 1 }, { status: 0, position: 2, user_id: 1 }] }),
+  ];
+  assert.deepEqual(units(s, 'subtask'), [3, 1]);
+  assert.deepEqual(units(s, 'complexity'), [9, 8]);
+});

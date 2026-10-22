@@ -53,14 +53,19 @@ class RaceShareController extends BaseController
         if ($mode === null) {
             return;
         }
-        $this->sendJson(RaceSummary::build($this->buildState(new RaceStateModel($this->container), $token), $mode));
+        $units = (new RaceSettings($this->container))->get($this->projectId($token))['units'];
+        $this->sendJson(RaceSummary::build($this->buildState(new RaceStateModel($this->container), $token), $mode, $units));
     }
 
     private function buildState(RaceStateModel $model, string $token): array
     {
-        $settings = new RaceSettings($this->container);
-        $projectId = (int) $settings->projectIdForToken($token);
-        return $model->build($projectId, $settings->get($projectId)['window_days']);
+        $projectId = $this->projectId($token);
+        return $model->build($projectId, (new RaceSettings($this->container))->get($projectId)['window_days']);
+    }
+
+    private function projectId(string $token): int
+    {
+        return (int) (new RaceSettings($this->container))->projectIdForToken($token);
     }
 
     private function token(): string
