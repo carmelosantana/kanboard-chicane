@@ -46,6 +46,17 @@ class RaceRedactorTest extends Base
         $this->assertFalse($tasks[3]['wontfix']);
     }
 
+    public function testBlockedTagsSurviveAsFlag(): void
+    {
+        $fixture = $this->fixture();
+        $fixture['tasks'][0]['tags'] = ['blocked'];
+        $fixture['tasks'][1]['tags'] = ['carmelo', 'needs-info'];
+        $tasks = RaceRedactor::mapOnly($fixture)['tasks'];
+
+        $this->assertSame([true, true, false, false], array_column($tasks, 'blocked'));
+        $this->assertSame([[], [], [], []], array_column($tasks, 'tags'));
+    }
+
     public static function names(): array
     {
         return [

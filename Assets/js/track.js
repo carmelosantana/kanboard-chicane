@@ -21,6 +21,10 @@
     if (!w.length) return '?';
     return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
   }
+  // map-only states carry `blocked` as a boolean (tags are redacted); full states carry the tags
+  function isBlocked(t) {
+    return t.blocked === true || t.blocked_by.length > 0 || (t.tags || []).some(function (x) { return x === 'blocked' || x === 'needs-info'; });
+  }
   function isWontfix(t) { return t.wontfix === true || (t.tags || []).indexOf('wontfix') >= 0; }
 
   // Ordered list of {task, column, lane, units:[{done}]}: closed by completion, then open by column, lane,
@@ -160,7 +164,7 @@
       var t = o.task;
       return { index: i, taskId: t.id, title: t.title, column: o.column, open: t.open, lane: o.lane,
         units: o.units.length, doneUnits: o.units.filter(function (u) { return u.done; }).length, s0: Infinity, s1: 0,
-        blocked: t.blocked_by.length > 0 || t.tags.some(function (x) { return x === 'blocked' || x === 'needs-info'; }),
+        blocked: isBlocked(t),
         comments: t.comments, ownerId: t.owner_id };
     });
     path.points.forEach(function (p) { var g = segs[p.seg]; if (g) { g.s0 = Math.min(g.s0, p.s); g.s1 = Math.max(g.s1, p.s); } });
@@ -221,13 +225,24 @@
       turns: segs.reduce(function (n, g) { return n + g.units - g.doneUnits; }, 0) };
   }
 
+  // [first, end) point index per segment, computed once per path: a segment's points are contiguous.
+  var rangeCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function segRanges(path) {
+    var ranges = rangeCache && rangeCache.get(path);
+    if (ranges) return ranges;
+    ranges = [];
+    path.points.forEach(function (p, i) { var r = ranges[p.seg]; if (r) r[1] = i + 1; else ranges[p.seg] = [i, i + 1]; });
+    if (rangeCache) rangeCache.set(path, ranges);
+    return ranges;
+  }
+
   // Morph aligned by task: each task's points interpolate by fraction within its own segment, so adding,
   // removing or reshaping one task leaves the rest of the road in place. A task only in `to` grows from a
   // point at its predecessor's end; a task only in `from` shrinks to one. `t` should already be eased.
   function morph(from, to, t) {
     var fromSegs = {}, out = [];
     from.segments.forEach(function (g) { fromSegs[g.taskId] = g; });
-    function segPoints(model, g) { return model.path.points.filter(function (p) { return p.seg === g.index; }); }
+    function segPoints(model, g) { var r = segRanges(model.path)[g.index]; return r ? model.path.points.slice(r[0], r[1]) : []; }
     // s in `from` of a `to` point at the same fraction of its segment (exact when the segment is unchanged)
     function fromS(q, g, fg) { return fg.s0 + (q.s - g.s0) * (g.s1 > g.s0 ? (fg.s1 - fg.s0) / (g.s1 - g.s0) : 0); }
     function point(a, b, k, toSeg, kindDone) {

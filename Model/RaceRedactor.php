@@ -3,10 +3,11 @@ namespace Kanboard\Plugin\Chicane\Model;
 
 // Map-only view of a race state: same shape, with every name-bearing string removed on the server.
 // Task titles go blank, users become initials, swimlanes become "Lane N", and tags are dropped
-// (the track only needs `wontfix`, kept as a boolean).
+// (the track only needs `wontfix` and `blocked`, kept as booleans).
 final class RaceRedactor
 {
     private const WONTFIX = 'wontfix';
+    private const BLOCKED = ['blocked', 'needs-info'];
 
     public static function mapOnly(array $state): array
     {
@@ -24,6 +25,7 @@ final class RaceRedactor
         foreach ($state['tasks'] as &$task) {
             $task['title'] = '';
             $task['wontfix'] = in_array(self::WONTFIX, $task['tags'], true);
+            $task['blocked'] = array_intersect(self::BLOCKED, $task['tags']) !== [];
             $task['tags'] = [];
         }
         unset($task);

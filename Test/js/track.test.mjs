@@ -176,10 +176,33 @@ test('a task in a disabled swimlane goes in lane 0', () => {
 
 test('perf: 3000 tasks build in under 500 ms', () => {
   const s = generate(3000);
+  C.build(s); // warm-up
   const t0 = performance.now();
   C.build(s);
   const ms = performance.now() - t0;
   assert.ok(ms < 500, `${ms.toFixed(0)} ms`);
+});
+
+// The renderer calls morph every animation frame during a transition.
+for (const [n, bound] of [[700, 16], [3000, 60]]) {
+  test(`perf: morph of a ${n}-task state with one task dropped takes under ${bound} ms`, () => {
+    const s = generate(n), from = C.build(s);
+    s.tasks.splice(Math.floor(n / 2), 1);
+    const to = C.build(s);
+    C.morph(from, to, 0.5); // warm-up
+    const t0 = performance.now();
+    C.morph(from, to, 0.5);
+    const ms = performance.now() - t0;
+    assert.ok(ms < bound, `${ms.toFixed(1)} ms`);
+  });
+}
+
+test('a map-only blocked flag still raises a barrier', () => {
+  const s = generate(10), t = s.tasks.find(t => t.open);
+  Object.assign(t, { tags: [], blocked_by: [], blocked: true });
+  assert.deepEqual(C.build(s).barriers.map(b => b.taskId), [t.id]);
+  t.blocked = false;
+  assert.deepEqual(C.build(s).barriers, []);
 });
 
 test('progress matches the PHP RaceSummary frozen total', () => {
