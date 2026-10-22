@@ -152,3 +152,23 @@ test('the page boot builds every model in the configured units mode and polls at
   assert.deepEqual(mounts, [1]);
   assert.deepEqual(hud, [['mount', true], ['update', 2]]);
 });
+
+test('when the renderer fails to mount, the HUD mounts with no model and says so, and later states leave it alone', async () => {
+  const hud = [], renderer = [];
+  const cfg = { stateUrl: '/race/t/state.json', mapOnly: false, pollMs: 5000, units: 'subtask' };
+  const page = {
+    els: { 'chicane-config': { textContent: JSON.stringify(cfg) }, stage: {}, hud: {} },
+    globals: {
+      Chicane: { build: state => ({ n: state.n }) },
+      ChicaneRace: { setMapOnly() {}, mount: () => Promise.reject(new Error('no WebGL')), transition: () => renderer.push('transition') },
+      ChicaneHud: { mount: (el, m) => hud.push(['mount', m]), update: m => hud.push(['update', m.n]), failed: () => hud.push(['failed']), expired: () => hud.push(['expired']) }
+    }
+  };
+  const h = harness([{ status: 200, etag: '"a"', body: { n: 1 } }, { status: 200, etag: '"b"', body: { n: 2 } }], page);
+  await tick(); await tick(); await tick();
+  assert.deepEqual(hud, [['mount', null], ['failed']]);
+  assert.ok(h.errors.some(e => /could not start the renderer/.test(e)));
+  h.timers[0].fn(); await tick(); await tick(); await tick();
+  assert.deepEqual(renderer, [], 'no transition on a renderer that never mounted');
+  assert.deepEqual(hud, [['mount', null], ['failed']]);
+});

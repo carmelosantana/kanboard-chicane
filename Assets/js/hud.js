@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   var HAZARDS = [['pothole', 'Potholes', 'closed early'], ['debris', 'Debris', 'stalled 3+ days'], ['wreck', 'Wrecks', 'abandoned'], ['slick', 'Oil slicks', 'reopened']];
-  var H = null; // { root, mapOnly, fill, label, drivers, hazards, banner }
+  var H = null; // { root, mapOnly, fill, label, drivers, hazards, expired, failed }
 
   function make(tag, cls, text, parent) {
     var n = document.createElement(tag);
@@ -51,17 +51,20 @@
     var top = make('div', 'hud-top', undefined, el), side = make('div', 'hud-side', undefined, el);
     var meter = make('div', 'meter', undefined, top);
     H = { root: el, mapOnly: !!(opts && opts.mapOnly), fill: make('div', 'meter-fill', undefined, meter), label: make('div', 'meter-label', undefined, top),
-      drivers: make('div', 'drivers', undefined, side), hazards: make('div', 'hazards', undefined, side), banner: null };
+      drivers: make('div', 'drivers', undefined, side), hazards: make('div', 'hazards', undefined, side), expired: null, failed: null };
     make('div', 'meter-flag', undefined, meter);
     update(model);
   }
 
-  function expired() {
-    if (!H || H.banner) return;
-    H.root.className = (H.root.className ? H.root.className + ' ' : '') + 'expired';
-    H.banner = make('div', 'hud-expired', 'This race link has expired.', H.root);
-    H.banner.setAttribute('role', 'alert');
+  // A centred alert line, shown once per kind.
+  function alertLine(kind, text) {
+    if (!H || H[kind]) return;
+    H.root.className = (H.root.className ? H.root.className + ' ' : '') + kind;
+    H[kind] = make('div', 'hud-' + kind, text, H.root);
+    H[kind].setAttribute('role', 'alert');
   }
+  function expired() { alertLine('expired', 'This race link has expired.'); }
+  function failed() { alertLine('failed', 'Could not start the renderer.'); }
 
-  window.ChicaneHud = { mount: mount, update: update, expired: expired };
+  window.ChicaneHud = { mount: mount, update: update, expired: expired, failed: failed };
 })();

@@ -87,7 +87,7 @@
     var R = window.ChicaneRace, H = window.ChicaneHud, C = window.Chicane;
     var cfg = JSON.parse(cfgEl.textContent), key = storeKey(cfg.stateUrl), store = storage();
     var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    var mode = { mode: cfg.units }, model = null, ready = Promise.resolve(); // renderer calls run in order, each after the last settles
+    var mode = { mode: cfg.units }, model = null, failed = false, ready = Promise.resolve(); // renderer calls run in order, each after the last settles
     R.setMapOnly(cfg.mapOnly);
     function run(step) { ready = ready.then(step).catch(function (err) { console.error('chicane: could not draw the race', err); }); }
     start({
@@ -104,11 +104,17 @@
             return R.mount(stage, from || to, { reducedMotion: reduced }).then(function () {
               H.mount(hudEl, from || to, { mapOnly: cfg.mapOnly });
               if (from) { R.transition(from, to, { duration: REPLAY_S }); H.update(to); } // since your last visit
+            }, function (err) {
+              // no WebGL, or the renderer broke: say so in the HUD and leave later states alone
+              failed = true;
+              console.error('chicane: could not start the renderer', err);
+              H.mount(hudEl, null, { mapOnly: cfg.mapOnly });
+              H.failed();
             });
           });
         } else {
           var was = model;
-          run(function () { R.transition(was, to, { duration: UPDATE_S }); H.update(to); });
+          run(function () { if (failed) return; R.transition(was, to, { duration: UPDATE_S }); H.update(to); });
         }
         model = to;
         saveLast(store, key, next);

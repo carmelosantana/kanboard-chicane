@@ -96,3 +96,16 @@ test('map-only shows initials and no task line', () => {
   assert.match(root.textContent, /CS/);
   assert.doesNotMatch(root.textContent, /Carmelo|Santana|onerror|in the pits/);
 });
+
+test('failed shows a could-not-start line as text on a HUD mounted with no model', () => {
+  const { H, root, created } = load();
+  H.mount(root, null, { mapOnly: false });
+  H.failed();
+  H.failed();
+  assert.match(root.textContent, /Could not start the renderer\./);
+  const lines = created.filter(n => n.className === 'hud-failed');
+  assert.equal(lines.length, 1, 'shown once');
+  assert.equal(lines[0].attrs.role, 'alert');
+  H.expired();
+  assert.match(root.textContent, /This race link has expired\./, 'expiry still shows after a failure');
+});
