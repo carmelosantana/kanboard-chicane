@@ -33,7 +33,7 @@ class RaceStateModel extends Base
         }
         unset($task);
 
-        return [
+        $state = [
             'generated' => $now,
             'window_days' => $windowDays,
             'project_id' => $projectId,
@@ -44,6 +44,9 @@ class RaceStateModel extends Base
             'reopened' => $this->reopened($projectId, $since),
             'tasks' => $tasks,
         ];
+
+        // The viewer only marks is_self in Presence's lineup; the public share route has none (0).
+        return (new RaceFeeds($this->container))->apply($state, $projectId, (int) $this->userSession->getId(), $now);
     }
 
     // Ignores `generated`, so an unchanged board keeps its ETag between polls.
