@@ -100,7 +100,7 @@ since your last visit; that last-seen state is kept in your browser's `localStor
 | `project_id` | the project's id |
 | `progress_pct` | units done ÷ all units, as a percentage rounded to one decimal (always a number with a decimal point, e.g. `80.0`) |
 | `distance_to_finish` | units still to drive (the HUD's "units to the flag") |
-| `cars` | one entry per member with an open task in the in-progress column (see Columns): `user` is the name, `task_id` that task |
+| `cars` | one entry per member with an open task in the in-progress column (see Columns): `user` is the name, `task_id` the task their car is on (the most-progressed one, then the earliest on the board, as on the track) |
 | `updated_at` | Unix time the state was built |
 
 Units follow the project's `chicane.units`. In `map_only`, `user` is the initials and `task_id` is `null`.

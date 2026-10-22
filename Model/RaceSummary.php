@@ -16,7 +16,7 @@ final class RaceSummary
         $total = 0;
         $done = 0;
         foreach ($state['tasks'] as $task) {
-            [$taskTotal, $taskDone] = $units === 'complexity' ? self::complexityUnits($task) : self::subtaskUnits($task);
+            [$taskTotal, $taskDone] = self::units($task, $units);
             $total += $taskTotal;
             $done += $taskDone;
         }
@@ -25,7 +25,7 @@ final class RaceSummary
             'project_id' => $state['project_id'],
             'progress_pct' => $total === 0 ? 0.0 : round($done / $total * 100, 1),
             'distance_to_finish' => $total - $done,
-            'cars' => self::cars($state, $mode === 'map_only'),
+            'cars' => self::cars($state, $mode === 'map_only', $units),
             'updated_at' => $state['generated'],
         ];
     }
@@ -35,6 +35,12 @@ final class RaceSummary
     {
         unset($summary['updated_at']);
         return sha1(Json::encode($summary));
+    }
+
+    /** @return array{int, int} [units, done units] */
+    private static function units(array $task, string $units): array
+    {
+        return $units === 'complexity' ? self::complexityUnits($task) : self::subtaskUnits($task);
     }
 
     /** @return array{int, int} [units, done units] */
@@ -62,8 +68,10 @@ final class RaceSummary
         return count(array_filter($task['subtasks'], fn (array $s) => (int) $s['status'] === self::SUBTASK_DONE));
     }
 
-    // One car per listed user with an open task in an in-progress column (by role), on their first such task.
-    private static function cars(array $state, bool $mapOnly): array
+    // One car per listed user with an open task in an in-progress column (by role). Of several, the car takes
+    // the most-progressed (done units / units in the project's units mode), then the earliest on the track:
+    // lane (swimlane order, 0 when unlisted), position, id. The same rule as track.js build().
+    private static function cars(array $state, bool $mapOnly, string $units): array
     {
         $inProgress = [];
         foreach ($state['columns'] as $column) {
@@ -71,13 +79,21 @@ final class RaceSummary
                 $inProgress[$column['id']] = true;
             }
         }
+        $lanes = array_flip(array_column($state['swimlanes'] ?? [], 'id'));
 
-        $taskByOwner = [];
+        $best = [];
         foreach ($state['tasks'] as $task) {
-            if ($task['open'] && isset($inProgress[$task['column_id']])) {
-                $taskByOwner[$task['owner_id']] ??= $task['id'];
+            if (! $task['open'] || ! isset($inProgress[$task['column_id']])) {
+                continue;
+            }
+            [$taskUnits, $taskDone] = self::units($task, $units);
+            $key = [-$taskDone / $taskUnits, $lanes[$task['swimlane_id'] ?? 0] ?? 0, $task['position'] ?? 0, $task['id']];
+            $owner = $task['owner_id'];
+            if (! isset($best[$owner]) || $key < $best[$owner]['key']) {
+                $best[$owner] = ['key' => $key, 'id' => $task['id']];
             }
         }
+        $taskByOwner = array_map(fn (array $b) => $b['id'], $best);
 
         $cars = [];
         foreach ($state['users'] as $user) {

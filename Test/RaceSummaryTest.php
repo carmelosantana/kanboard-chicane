@@ -89,6 +89,33 @@ class RaceSummaryTest extends Base
         $this->assertSame(42.9, $summary['progress_pct']);
     }
 
+    // Carmelo already drives task 102 (in progress, 2 of 3 subtasks done, lane 1, position 1); task 107 is a
+    // second in-progress task of his. The car takes the most-progressed one, then the earlier on the board
+    // (lane, position, id), exactly as track.js does. Test/js/track.test.mjs pins the same cases.
+    public static function carTaskParity(): array
+    {
+        return [
+            'more progressed, later on the board' => [1, 2, [2, 2, 2, 0], 107],
+            'tied, earlier position' => [1, 0, [2, 2, 0], 107],
+            'tied, later lane' => [2, 0, [2, 2, 0], 102],
+            'less progressed' => [1, 0, [0, 0], 102],
+        ];
+    }
+
+    /** @dataProvider carTaskParity */
+    public function testCarTaskMatchesTrackJs(int $lane, int $position, array $statuses, int $expected): void
+    {
+        $state = $this->fixture();
+        $state['tasks'][] = ['id' => 107, 'title' => 'second', 'open' => true, 'column_id' => 2, 'swimlane_id' => $lane, 'owner_id' => 1,
+            'position' => $position, 'score' => 0, 'date_moved' => 1761000000, 'date_completed' => null, 'tags' => [], 'blocked_by' => [],
+            'subtasks' => array_map(fn ($st, $i) => ['status' => $st, 'position' => $i + 1, 'user_id' => 1], $statuses, array_keys($statuses)),
+            'comments' => []];
+
+        $cars = RaceSummary::build($state, 'full', 'subtask')['cars'];
+
+        $this->assertSame([['user' => 'Carmelo Santana', 'task_id' => $expected]], $cars);
+    }
+
     // The same two cases are pinned in Test/js/track.test.mjs.
     public static function complexityParity(): array
     {

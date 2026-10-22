@@ -149,6 +149,22 @@ test('roles: a column titled In progress without the role places no car', () => 
   assert.deepEqual(hazardsOf(m, 'debris'), []);
 });
 
+// RaceSummaryTest::carTaskParity pins the same cases: the summary's car task is the HUD's.
+for (const [name, lane, position, statuses, expected] of [
+  ['more progressed, later on the board', 1, 2, [2, 2, 2, 0], 107],
+  ['tied, earlier position', 1, 0, [2, 2, 0], 107],
+  ['tied, later lane', 2, 0, [2, 2, 0], 102],
+  ['less progressed', 1, 0, [0, 0], 102],
+]) {
+  test(`car task with two in-progress tasks: ${name}`, () => {
+    const s = small();
+    s.tasks.push({ id: 107, title: 'second', open: true, column_id: 2, swimlane_id: lane, owner_id: 1, position, score: 0,
+      date_moved: 1761000000, date_completed: null, tags: [], blocked_by: [],
+      subtasks: statuses.map((status, i) => ({ status, position: i + 1, user_id: 1 })), comments: [] });
+    assert.equal(C.build(s).cars.find(c => c.userId === 1).taskId, expected);
+  });
+}
+
 test('recent spectators', () => {
   const s = generate(4);
   s.tasks[0].comments = [{ user_id: 1, date: NOW - 47 * 3600 }, { user_id: 1, date: NOW - 49 * 3600 }];
