@@ -9,6 +9,7 @@
 </head>
 <body>
     <div id="stage"></div>
+    <div id="hud"></div>
     <script type="application/json" id="chicane-config"><?= str_replace('</', '<\/', json_encode($config, JSON_UNESCAPED_SLASHES | JSON_HEX_AMP)) ?></script>
     <?= $this->asset->js('plugins/Chicane/Assets/vendor/pixi-8.22.0.min.js') ?>
     <?= $this->asset->js('plugins/Chicane/Assets/vendor/pixi-unsafe-eval-8.22.0.min.js') ?>
@@ -16,5 +17,7 @@
     <?= $this->asset->js('plugins/Chicane/Assets/vendor/gsap-motionpath-3.15.0.min.js') ?>
     <?= $this->asset->js('plugins/Chicane/Assets/js/track.js') ?>
     <?= $this->asset->js('plugins/Chicane/Assets/js/race.js') ?>
+    <?= $this->asset->js('plugins/Chicane/Assets/js/live.js') ?>
+    <?= $this->asset->js('plugins/Chicane/Assets/js/hud.js') ?>
 </body>
 </html>

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 // race.js is a browser script; load it with just enough PIXI/gsap/document stubs for its load-time code
-// (the page boot finds no #chicane-config and returns) and test its pure helpers.
+// and test its pure helpers.
 const src = readFileSync(new URL('../../Assets/js/race.js', import.meta.url), 'utf8');
 const win = { PIXI: { extensions: { add() {} } }, gsap: { ticker: { lagSmoothing() {} } }, Chicane: {} };
 new Function('window', 'document', src)(win, { readyState: 'complete', getElementById: () => null });

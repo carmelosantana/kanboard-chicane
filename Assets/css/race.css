@@ -2,3 +2,31 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #24461f; }
 #stage { position: fixed; inset: 0; }
 #stage canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+
+/* HUD: meter top-centre, drivers and hazard counts top-left (the canvas draws the minimap top-right). */
+#hud { position: fixed; inset: 0; pointer-events: none; font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; color: #e6edf3; }
+#hud .hud-top { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); text-align: center; }
+#hud .meter { position: relative; height: 10px; margin: 0 14px 4px 0; background: rgba(255, 255, 255, .16); border-radius: 6px; }
+#hud .meter-fill { width: 0; height: 100%; background: linear-gradient(90deg, #f9c513, #ff6b3d); border-radius: 6px; transition: width 1.6s cubic-bezier(.22, 1, .36, 1); }
+#hud .meter-flag { position: absolute; right: -14px; top: -3px; width: 12px; height: 16px; border-radius: 2px;
+  background: repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / 8px 8px; }
+#hud .meter-label { font-size: 12px; text-shadow: 0 1px 4px #000; }
+#hud .hud-side { position: absolute; top: 12px; left: 12px; width: 250px; max-height: calc(100% - 24px); overflow: auto; pointer-events: auto;
+  background: rgba(13, 17, 23, .82); border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; padding: 8px 10px; }
+#hud .driver { padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, .07); }
+#hud .driver .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #8b949e; }
+#hud .driver.on .dot { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+#hud .driver.off .dot { background: #484f58; }
+#hud .driver .agent { font-style: normal; font-size: 10px; margin-left: 6px; padding: 0 4px; border-radius: 3px; background: #8957e5; }
+#hud .driver .lvl { float: right; font-size: 11px; opacity: .7; }
+#hud .driver .task { font-size: 11px; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#hud .hazards { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin-top: 8px; font-size: 11px; }
+#hud .hz { display: flex; justify-content: space-between; }
+#hud .hz.none { opacity: .45; }
+#hud .hud-expired { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 32px); pointer-events: auto;
+  padding: 16px 24px; border-radius: 10px; background: rgba(13, 17, 23, .94); border: 1px solid rgba(255, 255, 255, .2); font-size: 16px; font-weight: 600; text-align: center; }
+#hud.expired .hud-top, #hud.expired .hud-side { opacity: .4; }
+@media (max-width: 700px) {
+  #hud .hud-side { top: auto; bottom: 16px; left: 16px; right: 16px; width: auto; max-height: 35vh; }
+}
+@media (prefers-reduced-motion: reduce) { #hud .meter-fill { transition-duration: .3s; } }

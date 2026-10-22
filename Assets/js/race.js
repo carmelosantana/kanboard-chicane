@@ -3,8 +3,7 @@
 // Road, verge, shadow, kerbs, gravel, skid marks and stands are single meshes, rebuilt only when the display
 // path changes (mount, transition frames). Trees and roadside props are ParticleContainers chunked by screen
 // area so offscreen chunks are culled; the crowd is one dynamic ParticleContainer.
-// Classic script: defines window.ChicaneRace and, unless live.js has defined window.ChicaneLive, boots the
-// page once from the chicane-config JSON.
+// Classic script: defines window.ChicaneRace. The page boot lives in live.js.
 (function () {
   'use strict';
   var P = window.PIXI, G = window.gsap, C = window.Chicane;
@@ -1081,17 +1080,4 @@
 
   window.ChicaneRace = { mount: mount, transition: transition, setMapOnly: setMapOnly, destroy: destroy,
     _internals: { lru: lru, track: track } }; // pure helpers, exposed for Test/js/race.test.mjs
-
-  // ---------- page boot: fetch the state once and mount (live.js, when present, owns this instead) ----------
-  function boot() {
-    var cfgEl = document.getElementById('chicane-config'), stage = document.getElementById('stage');
-    if (!cfgEl || !stage || window.ChicaneLive) return;
-    var cfg = JSON.parse(cfgEl.textContent), reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    setMapOnly(cfg.mapOnly);
-    fetch(cfg.stateUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then(function (res) { if (!res.ok) throw new Error('state.json HTTP ' + res.status); return res.json(); })
-      .then(function (state) { return mount(stage, C.build(state), { reducedMotion: reduced }); })
-      .catch(function (err) { console.error('chicane: could not load the race', err); });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
