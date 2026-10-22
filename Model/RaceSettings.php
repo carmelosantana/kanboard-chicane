@@ -91,11 +91,7 @@ class RaceSettings extends Base
             return null;
         }
 
-        return match ($this->get($projectId)['visibility']) {
-            'public' => 'full',
-            'map_only' => 'map_only',
-            default => null,
-        };
+        return RaceGate::decide($this->visibilityOf($projectId), false, true);
     }
 
     // Read-only visibility lookup (no lazy token write), for per-render checks such as the project dropdown.

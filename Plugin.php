@@ -10,10 +10,16 @@ class Plugin extends Base
     public function initialize(): void
     {
         $this->projectAccessMap->add('RaceSettingsController', '*', Role::PROJECT_MANAGER);
+        $this->applicationAccessMap->add('RaceShareController', '*', Role::APP_PUBLIC);
 
         $this->route->addRoute('chicane/settings/save', 'RaceSettingsController', 'save', 'Chicane');
         $this->route->addRoute('chicane/settings/rotate', 'RaceSettingsController', 'rotate', 'Chicane');
         $this->route->addRoute('chicane/settings/:project_id', 'RaceSettingsController', 'show', 'Chicane');
+        $this->route->addRoute('chicane/:project_id', 'RaceController', 'show', 'Chicane');
+        $this->route->addRoute('chicane/:project_id/state.json', 'RaceController', 'state', 'Chicane');
+        $this->route->addRoute('race/:token', 'RaceShareController', 'show', 'Chicane');
+        $this->route->addRoute('race/:token/state.json', 'RaceShareController', 'state', 'Chicane');
+        $this->route->addRoute('race/:token/summary.json', 'RaceShareController', 'summary', 'Chicane');
 
         $container = $this->container;
         $this->hook->on('template:project:sidebar', ['template' => 'Chicane:project/sidebar']);
