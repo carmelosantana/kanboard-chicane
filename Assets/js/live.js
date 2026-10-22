@@ -1,6 +1,6 @@
 // Chicane live updates: polls state.json every config.pollMs (20 s) while the tab is visible (ETag revalidation), replays
 // the morph from this viewer's last visit, and boots the page. The last seen state is a per-viewer, per-URL
-// convenience in localStorage; any storage failure just skips the replay.
+// convenience in localStorage (the newest 3 boards only); any storage failure just skips the replay.
 // Classic script: defines window.ChicaneLive and boots the page (the only boot path).
 (function () {
   'use strict';
@@ -10,12 +10,32 @@
   function onResponse(status) {
     return status === 200 ? 'update' : status === 304 ? 'same' : status === 404 ? 'expired' : 'retry';
   }
-  function storeKey(stateUrl) { return 'chicane:last:' + stateUrl; }
+  var PREFIX = 'chicane:last:', KEEP = 3;
+  function storeKey(stateUrl) { return PREFIX + stateUrl; }
   function loadLast(storage, key) {
     try { var v = storage.getItem(key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
   }
-  function saveLast(storage, key, state) {
-    try { storage.setItem(key, JSON.stringify(state)); } catch (e) { /* full, blocked or private: no replay */ }
+  // Saves {saved, etag, state}, then keeps only the KEEP most recently saved chicane:last entries (one per
+  // board link), so links opened once do not pile up. Entries without a readable time go first.
+  function saveLast(storage, key, entry, now) {
+    try {
+      storage.setItem(key, JSON.stringify({ saved: now === undefined ? Date.now() : now, etag: entry.etag, state: entry.state }));
+    } catch (e) { return; /* full, blocked or private: no replay */ }
+    prune(storage);
+  }
+  function prune(storage) {
+    try {
+      var entries = [];
+      for (var i = 0; i < storage.length; i++) {
+        var k = storage.key(i);
+        if (typeof k === 'string' && k.indexOf(PREFIX) === 0) {
+          var v = loadLast(storage, k);
+          entries.push({ key: k, saved: v && typeof v.saved === 'number' ? v.saved : 0 });
+        }
+      }
+      entries.sort(function (a, b) { return b.saved - a.saved; });
+      entries.slice(KEEP).forEach(function (x) { storage.removeItem(x.key); });
+    } catch (e) { /* storage refused: leave it as it is */ }
   }
   function visible() { return document.visibilityState !== 'hidden'; }
 

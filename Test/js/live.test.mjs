@@ -12,7 +12,10 @@ const L = win.ChicaneLive;
 // A localStorage stand-in backed by a Map.
 function memoryStorage() {
   const m = new Map();
-  return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); } };
+  return {
+    getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: k => { m.delete(k); },
+    key: i => [...m.keys()][i] ?? null, get length() { return m.size; }, keys: () => [...m.keys()].sort()
+  };
 }
 
 test('nextDelay polls at the configured interval while visible and not at all while hidden', () => {
@@ -45,11 +48,35 @@ test('loadLast returns null for an unreadable entry', () => {
   assert.equal(L.loadLast(s, 'k'), null);
 });
 
-test('saveLast then loadLast round-trips', () => {
+test('saveLast then loadLast round-trips, with the time it was saved', () => {
   const s = memoryStorage(), entry = { etag: '"abc"', state: { generated: 1, tasks: [{ id: 7, title: 'x' }] } };
-  L.saveLast(s, 'k', entry);
-  assert.deepEqual(L.loadLast(s, 'k'), entry);
+  L.saveLast(s, 'chicane:last:/a', entry, 1234);
+  assert.deepEqual(L.loadLast(s, 'chicane:last:/a'), { saved: 1234, etag: entry.etag, state: entry.state });
   assert.equal(L.loadLast(s, 'other'), null);
+});
+
+test('saveLast keeps only the newest 3 chicane:last entries and leaves other keys alone', () => {
+  const s = memoryStorage();
+  s.setItem('chicane:last:/legacy', JSON.stringify({ etag: '"x"', state: {} })); // no timestamp: oldest
+  s.setItem('chicane:last:/corrupt', '{not json');
+  s.setItem('other:thing', 'keep me');
+  for (let i = 1; i <= 5; i++) L.saveLast(s, 'chicane:last:/r' + i, { etag: '"' + i + '"', state: { n: i } }, 1000 + i);
+  assert.deepEqual(s.keys(), ['chicane:last:/r3', 'chicane:last:/r4', 'chicane:last:/r5', 'other:thing']);
+  // re-saving an old board makes it the newest
+  L.saveLast(s, 'chicane:last:/r3', { etag: '"3b"', state: {} }, 2000);
+  L.saveLast(s, 'chicane:last:/r6', { etag: '"6"', state: {} }, 2001);
+  assert.deepEqual(s.keys(), ['chicane:last:/r3', 'chicane:last:/r5', 'chicane:last:/r6', 'other:thing']);
+});
+
+test('pruning survives storage that throws on any call', () => {
+  const s = memoryStorage();
+  s.key = () => { throw new Error('SecurityError'); };
+  assert.doesNotThrow(() => L.saveLast(s, 'chicane:last:/a', { etag: '"a"', state: {} }, 1));
+  assert.equal(L.loadLast(s, 'chicane:last:/a').etag, '"a"');
+  const r = memoryStorage();
+  for (let i = 0; i < 4; i++) r.setItem('chicane:last:/' + i, JSON.stringify({ saved: i }));
+  r.removeItem = () => { throw new Error('blocked'); };
+  assert.doesNotThrow(() => L.saveLast(r, 'chicane:last:/new', { etag: '"n"', state: {} }, 9));
 });
 
 // Drives start() with a scripted fetch and a manual timer queue.

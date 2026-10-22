@@ -79,7 +79,8 @@ When visibility is anything but `off`, a **Race** link in the project menu opens
 
 The JSON routes answer `If-None-Match` with `304 Not Modified`. The race page polls `state.json` every 20 s
 while the tab is visible and eases from the old track to the new one. On return it replays the change
-since your last visit; that last-seen state is kept in your browser's `localStorage` only.
+since your last visit; that last-seen state is kept in your browser's `localStorage` only, for the three
+boards you opened most recently.
 
 ## Summary JSON
 
