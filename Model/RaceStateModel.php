@@ -208,7 +208,8 @@ class RaceStateModel extends Base
         return $roles;
     }
 
-    // Active users who are members directly or through a group; one entry each, ordered by id.
+    // Active users who are members directly or through a group; one entry each, ordered by id. A user with
+    // no display name is listed by username.
     private function users(int $projectId): array
     {
         $direct = $this->db->table('project_has_users')
@@ -229,7 +230,7 @@ class RaceStateModel extends Base
         foreach (array_merge($direct, $viaGroup) as $row) {
             $users[(int) $row['id']] = [
                 'id' => (int) $row['id'],
-                'name' => (string) $row['name'],
+                'name' => (string) ($row['name'] ?: $row['username']),
                 'username' => (string) $row['username'],
                 'online' => null,
                 'xp' => null,

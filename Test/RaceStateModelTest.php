@@ -244,6 +244,17 @@ class RaceStateModelTest extends Base
         $this->assertSame($this->laneB, $this->byId($state, $hidden)['swimlane_id']);
     }
 
+    public function testUserWithoutANameIsListedByUsername(): void
+    {
+        $nameless = (int) $this->container['userModel']->create(['username' => 'zed']);
+        $this->container['projectUserRoleModel']->addUser($this->projectId, $nameless, Role::PROJECT_MEMBER);
+
+        $users = array_column($this->model()->build($this->projectId, 30)['users'], 'name', 'id');
+
+        $this->assertSame('zed', $users[$nameless]);
+        $this->assertSame('Alice A', $users[$this->alice]);
+    }
+
     public function testInactiveUserIsNotListed(): void
     {
         $this->container['userModel']->disable($this->bob);
