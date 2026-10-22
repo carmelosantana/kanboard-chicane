@@ -1,10 +1,10 @@
-// Chicane HUD: the progress meter, the driver list and the hazard counts over the race canvas.
+// Chicane HUD: the progress meter, the driver list and the hazard legend with counts over the race canvas.
 // Every string goes in through textContent, never markup, so hostile titles show as text. Map-only shows
 // initials and no task lines, whatever the model carries.
 // Classic script: defines window.ChicaneHud.
 (function () {
   'use strict';
-  var HAZARDS = [['pothole', 'Potholes'], ['debris', 'Debris'], ['wreck', 'Wrecks'], ['slick', 'Oil slicks']];
+  var HAZARDS = [['pothole', 'Potholes', 'closed early'], ['debris', 'Debris', 'stalled 3+ days'], ['wreck', 'Wrecks', 'abandoned'], ['slick', 'Oil slicks', 'reopened']];
   var H = null; // { root, mapOnly, fill, label, drivers, hazards, banner }
 
   function make(tag, cls, text, parent) {
@@ -17,8 +17,8 @@
 
   function meterText(m) {
     if (!m.totalUnits) return 'No laps yet';
-    var UNIT = (window.Chicane && window.Chicane.UNIT) || 60, toFlag = Math.max(0, Math.round((m.finishS - m.progressS) / UNIT));
-    return m.doneUnits + ' / ' + m.totalUnits + ' units · ' + m.turns + ' turns ahead · ' + toFlag + ' units to the flag';
+    // units to the flag = units left, the same as the summary's distance_to_finish
+    return m.doneUnits + ' / ' + m.totalUnits + ' units · ' + m.turns + ' turns ahead · ' + (m.totalUnits - m.doneUnits) + ' units to the flag';
   }
 
   function driver(c, parent) {
@@ -40,7 +40,8 @@
     H.hazards.textContent = '';
     HAZARDS.forEach(function (t) {
       var row = make('div', 'hz hz-' + t[0] + (n[t[0]] ? '' : ' none'), undefined, H.hazards);
-      make('span', null, t[1], row); make('b', null, String(n[t[0]] || 0), row);
+      make('i', 'swatch', undefined, row); make('span', 'name', t[1], row); make('span', 'hint', ' · ' + t[2], row);
+      make('b', null, String(n[t[0]] || 0), row);
     });
   }
 

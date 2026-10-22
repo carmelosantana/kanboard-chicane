@@ -39,21 +39,31 @@ test('a hostile title lands in textContent and creates no img element', () => {
   assert.equal(created.filter(n => n.tagName === 'IMG').length, 0);
 });
 
-test('the meter reads done / total units, turns ahead and units to the flag', () => {
+test('the meter reads done / total units, turns ahead and units to the flag (total - done)', () => {
   const { C, H, root } = load(), m = C.build(small());
   H.mount(root, m, { mapOnly: false });
-  assert.match(root.textContent, new RegExp(m.doneUnits + ' / ' + m.totalUnits + ' units · ' + m.turns + ' turns ahead · \\d+ units to the flag'));
+  assert.match(root.textContent, new RegExp(m.doneUnits + ' / ' + m.totalUnits + ' units · ' + m.turns + ' turns ahead · ' + (m.totalUnits - m.doneUnits) + ' units to the flag'));
   assert.match(root.textContent, /Carmelo Santana/);
 });
 
-test('the hazard legend counts each hazard type', () => {
+test('completing any open subtask brings the flag one unit closer', () => {
+  const { C, H, root } = load(), s = small(), flag = () => Number(/(\d+) units to the flag/.exec(root.textContent)[1]);
+  H.mount(root, C.build(s), { mapOnly: false });
+  const before = flag();
+  s.tasks.find(t => t.id === 102).subtasks.find(x => x.status !== 2).status = 2;
+  H.update(C.build(s));
+  assert.equal(flag(), before - 1);
+});
+
+test('the hazard legend names and counts each hazard type', () => {
   const { C, H, root } = load(), m = C.build(small());
   H.mount(root, m, { mapOnly: false });
   const n = t => m.hazards.filter(h => h.type === t).length;
   assert.ok(n('pothole') > 0 && n('wreck') > 0, 'fixture has potholes and wrecks');
-  assert.match(root.textContent, new RegExp('Potholes' + n('pothole')));
-  assert.match(root.textContent, new RegExp('Wrecks' + n('wreck')));
-  assert.match(root.textContent, /Oil slicks0/);
+  assert.match(root.textContent, new RegExp('Potholes · closed early' + n('pothole')));
+  assert.match(root.textContent, new RegExp('Wrecks · abandoned' + n('wreck')));
+  assert.match(root.textContent, /Debris · stalled 3\+ days\d/);
+  assert.match(root.textContent, /Oil slicks · reopened0/);
 });
 
 test('an empty race reads No laps yet', () => {

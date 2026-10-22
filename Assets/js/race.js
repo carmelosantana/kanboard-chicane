@@ -21,11 +21,8 @@
   var CAR_COLORS = [0xff4d4d, 0x2f81f7, 0xf9c513, 0x3fb950, 0xdb61a2, 0xff8c42, 0xa371f7, 0x56d4dd];
   var CROWD = [0xff6b6b, 0xffd166, 0x4dabf7, 0x63e6be, 0xf783ac, 0xffffff, 0xb197fc, 0xffa94d, 0x8ce99a, 0x74c0fc];
   var FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
-  var HZ = {
-    pothole: { col: 0xd0d7de, label: 'Pothole · closed early' },
-    debris: { col: 0xff8c1a, label: 'Debris · stalled 3+ days' },
-    wreck: { col: 0xff4d4d, label: 'Wreck · abandoned' },
-    slick: { col: 0xb392f0, label: 'Oil slick · reopened' }
+  var HZ = { // minimap dot colours; the hazard legend (with counts) is the HUD's (hud.js, race.css)
+    pothole: { col: 0xd0d7de }, debris: { col: 0xff8c1a }, wreck: { col: 0xff4d4d }, slick: { col: 0xb392f0 }
   };
 
   var S = null;         // renderer state of the mounted view
@@ -633,31 +630,6 @@
     for (var i = 0; i < hazards.length; i++) { var h = hazards[i]; if (h.type === 'slick' && Math.abs(s - h.s) < (h.radius || 40) * 1.3) return 0.28; }
     return 1;
   }
-  function buildLegend() {
-    var c = new P.Container(), bg = new P.Graphics(), y = 26, w = 214;
-    var title = new P.Text({ text: 'HAZARDS', style: { fontFamily: FONT, fontSize: 10, fontWeight: '800', letterSpacing: 2, fill: 0x8b949e } });
-    title.position.set(10, 8); c.addChild(bg, title);
-    Object.keys(HZ).forEach(function (k) {
-      var ic = new P.Graphics(), dot = new P.Graphics();
-      if (k === 'pothole') { ic.scale.set(0.8); drawPothole(ic, rng(21)); }
-      else if (k === 'debris') { [[-3, 0], [4, 2]].forEach(function (q) { ic.ellipse(q[0], q[1], 3.6, 2.1).fill(0x141414); ic.ellipse(q[0], q[1], 1.5, 0.9).fill(0x6e7681); }); ic.rect(0, -4, 4, 2).fill(0xff4d4d); }
-      else if (k === 'wreck') { ic.roundRect(-7, -3, 14, 7, 2).fill(0x7a2c2c); ic.rotation = 0.4; ic.circle(5, -6, 3).fill({ color: 0x8a8f96, alpha: 0.6 }); }
-      else { isoEll(ic, 0, 0, 7, 7).fill(0x07080a); isoEll(ic, -1, -1, 3.5, 2.5).fill({ color: 0x7f5af0, alpha: 0.55 }); isoEll(ic, 2, 1, 2.5, 2).fill({ color: 0x2cb67d, alpha: 0.5 }); }
-      ic.position.set(20, y + 7);
-      dot.circle(38, y + 7, 2.6).fill(HZ[k].col);
-      var t = new P.Text({ text: HZ[k].label, style: { fontFamily: FONT, fontSize: 11, fill: 0xc9d1d9 } }); t.position.set(46, y);
-      var cnt = new P.Text({ text: '0', style: { fontFamily: FONT, fontSize: 11, fontWeight: '700', fill: 0xffffff } }); cnt.anchor.set(1, 0); cnt.position.set(w - 10, y);
-      c.addChild(ic, dot, t, cnt); S.legendCounts[k] = cnt; y += 20;
-    });
-    bg.roundRect(0, 0, w, y + 4, 10).fill({ color: 0x0d1117, alpha: 0.88 }).stroke({ width: 1, color: 0xffffff, alpha: 0.14 });
-    c.__w = w; return c;
-  }
-  function updateLegend() {
-    var n = { pothole: 0, debris: 0, wreck: 0, slick: 0 };
-    for (var k in S.haz) n[S.haz[k].h.type]++;
-    Object.keys(HZ).forEach(function (t) { S.legendCounts[t].text = String(n[t]); S.legendCounts[t].alpha = n[t] ? 1 : 0.45; });
-  }
-
   // ---------- barriers: blocked work, with a yellow flag ----------
   function addBarrier(b, fadeIn) {
     var c = new P.Container(), base = new P.Graphics(), flag = new P.Graphics(), glow = new P.Sprite(S.glow);
@@ -831,7 +803,6 @@
     var w = aspect >= 1 ? maxW : maxW * aspect, h = aspect >= 1 ? maxW / aspect : maxW, pad = 10;
     S.mm = { w: w + pad * 2, h: h + pad * 2, x: S.app.screen.width - (w + pad * 2) - 16, y: 16, k: w / (b.x1 - b.x0), pad: pad };
     S.mini.position.set(S.mm.x, S.mm.y);
-    S.legend.position.set(S.app.screen.width - S.legend.__w - 16, S.mm.y + S.mm.h + 8);
   }
   function mmPt(x, y) { var m = S.mm, b = S.isoBounds; return [m.pad + (x - b.x0) * m.k, m.pad + (y - b.y0) * m.k]; }
   function drawMinimap() {
@@ -907,7 +878,6 @@
         tw(old, { alpha: 0, duration: S.reduced ? 0.3 : 0.8, ease: 'power2.in', onComplete: function () { old.destroy({ children: true }); } });
       } else if (old) old.destroy({ children: true });
     });
-    updateLegend();
     var b = pathBounds(S.path), gb = S.groundB;
     if (!gb || b.x0 < gb.x0 - 600 || b.y0 < gb.y0 - 600 || b.x1 > gb.x1 + 600 || b.y1 > gb.y1 + 600) { S.groundB = b; drawGround(b); }
   }
@@ -930,7 +900,7 @@
   function mount(stageEl, model, opts) {
     if (S) destroy();
     S = { cam: { x: 0, y: 0, z: 1 }, cars: {}, specs: {}, bars: {}, haz: {}, bounce: [{ v: 0 }, { v: 0 }, { v: 0 }], wave: { v: 0 }, frame: 0,
-      tweens: new Set(), sources: [], legendCounts: {}, reduced: !!(opts && opts.reducedMotion) };
+      tweens: new Set(), sources: [], reduced: !!(opts && opts.reducedMotion) };
     S.model = model; S.roadW = model.roadWidth; S.laneW = model.laneWidth; S.lanes = model.lanes;
     S.path = displayPath(model.path); S.progFrac = model.progressS / (model.path.length || 1);
     choosePitSide(model);
@@ -950,10 +920,10 @@
       S.barLayer = new P.Container(); S.treeLayer = new P.Container(); S.hazFlat = new P.Container(); S.propLayer = new P.Container(); S.carLayer = new P.Container(); S.flagG = new P.Graphics();
       S.world.addChild(S.ground, S.m.verge, S.m.gravel, S.m.shadow, S.m.side, S.m.top, S.m.skid, S.m.curb, S.hazFlat, S.progG, S.fixtures, S.propLayer,
         S.m.standWall, S.m.standTop, S.crowd, S.barLayer, S.treeLayer, S.carLayer, S.flagG);
-      // screen-space overlays: vignette, car plates, minimap, hazard legend
+      // screen-space overlays: vignette, car plates, minimap
       var vig = new P.Sprite(vignetteTexture());
       S.labels = new P.Container(); S.mini = new P.Container(); S.miniBase = new P.Graphics(); S.miniDyn = new P.Graphics(); S.mini.addChild(S.miniBase, S.miniDyn);
-      S.legend = buildLegend(); app.stage.addChild(vig, S.labels, S.mini, S.legend);
+      app.stage.addChild(vig, S.labels, S.mini);
       function fit() { vig.width = app.screen.width; vig.height = app.screen.height; if (S.D) drawMinimap(); }
       app.renderer.on('resize', fit); fit();
 
@@ -1030,7 +1000,6 @@
       if (hseen[k]) return; var r = S.haz[k]; delete S.haz[k];
       fadeOut(r, { al: 0, sc: 0.6, duration: S.reduced ? 0.3 : 0.6, ease: 'power2.in', onUpdate: function () { placeHazard(r); } }, function () { r.c.destroy({ children: true }); });
     });
-    updateLegend();
     // keep the view on the same piece of road while the course reflows around it (unless the intro flies)
     var anchor = S.introTl ? -1 : nearestIndex(A, S.cam.x, S.cam.y), anchorAt = anchor >= 0 ? isoOf(A.points[anchor]) : null;
     var st = { t: 0 }, ease = G.parseEase('power2.inOut');

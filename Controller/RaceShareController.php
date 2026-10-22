@@ -19,13 +19,14 @@ class RaceShareController extends BaseController
         if ($mode === null) {
             return;
         }
+        $settings = new RaceSettings($this->container);
         $this->response->html($this->template->render('Chicane:race/page', [
             'title' => t('Race track'),
-            'config' => [
-                'stateUrl' => $this->helper->url->to('RaceShareController', 'state', ['plugin' => 'Chicane', 'token' => $token]),
-                'mapOnly' => $mode === 'map_only',
-                'pollMs' => 20000,
-            ],
+            'config' => $settings->pageConfig(
+                (int) $settings->projectIdForToken($token),
+                $this->helper->url->to('RaceShareController', 'state', ['plugin' => 'Chicane', 'token' => $token]),
+                $mode === 'map_only'
+            ),
         ]));
     }
 

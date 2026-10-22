@@ -20,11 +20,11 @@ class RaceController extends BaseController
         }
         $this->response->html($this->template->render('Chicane:race/page', [
             'title' => $project['name'],
-            'config' => [
-                'stateUrl' => $this->helper->url->to('RaceController', 'state', ['plugin' => 'Chicane', 'project_id' => $project['id']]),
-                'mapOnly' => false,
-                'pollMs' => 20000,
-            ],
+            'config' => (new RaceSettings($this->container))->pageConfig(
+                (int) $project['id'],
+                $this->helper->url->to('RaceController', 'state', ['plugin' => 'Chicane', 'project_id' => $project['id']]),
+                false
+            ),
         ]));
     }
 

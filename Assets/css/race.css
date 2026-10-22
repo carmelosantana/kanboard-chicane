@@ -3,7 +3,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #24461f; }
 #stage { position: fixed; inset: 0; }
 #stage canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 
-/* HUD: meter top-centre, drivers and hazard counts top-left (the canvas draws the minimap top-right). */
+/* HUD: meter top-centre, drivers and hazard counts top-left (the canvas draws only the minimap, top-right). */
 #hud { position: fixed; inset: 0; pointer-events: none; font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; color: #e6edf3; }
 #hud .hud-top { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); text-align: center; }
 #hud .meter { position: relative; height: 10px; margin: 0 14px 4px 0; background: rgba(255, 255, 255, .16); border-radius: 6px; }
@@ -20,8 +20,14 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #24461f; }
 #hud .driver .agent { font-style: normal; font-size: 10px; margin-left: 6px; padding: 0 4px; border-radius: 3px; background: #8957e5; }
 #hud .driver .lvl { float: right; font-size: 11px; opacity: .7; }
 #hud .driver .task { font-size: 11px; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#hud .hazards { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin-top: 8px; font-size: 11px; }
-#hud .hz { display: flex; justify-content: space-between; }
+#hud .hazards { display: grid; gap: 3px; margin-top: 8px; font-size: 11px; }
+#hud .hz { display: flex; align-items: center; gap: 6px; }
+#hud .hz .hint { flex: 1; opacity: .6; }
+#hud .hz .swatch { width: 7px; height: 7px; border-radius: 50%; } /* the minimap dot colours (race.js HZ) */
+#hud .hz-pothole .swatch { background: #d0d7de; }
+#hud .hz-debris .swatch { background: #ff8c1a; }
+#hud .hz-wreck .swatch { background: #ff4d4d; }
+#hud .hz-slick .swatch { background: #b392f0; }
 #hud .hz.none { opacity: .45; }
 #hud .hud-expired { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 32px); pointer-events: auto;
   padding: 16px 24px; border-radius: 10px; background: rgba(13, 17, 23, .94); border: 1px solid rgba(255, 255, 255, .2); font-size: 16px; font-weight: 600; text-align: center; }

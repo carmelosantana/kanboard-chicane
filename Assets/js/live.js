@@ -1,12 +1,12 @@
-// Chicane live updates: polls state.json every 20 s while the tab is visible (ETag revalidation), replays
+// Chicane live updates: polls state.json every config.pollMs (20 s) while the tab is visible (ETag revalidation), replays
 // the morph from this viewer's last visit, and boots the page. The last seen state is a per-viewer, per-URL
 // convenience in localStorage; any storage failure just skips the replay.
 // Classic script: defines window.ChicaneLive and boots the page (the only boot path).
 (function () {
   'use strict';
-  var POLL_MS = 20000, REPLAY_S = 3.2, UPDATE_S = 1.6;
+  var REPLAY_S = 3.2, UPDATE_S = 1.6;
 
-  function nextDelay(o) { return o && o.visible ? POLL_MS : null; }
+  function nextDelay(o) { return o.visible ? o.pollMs : null; }
   function onResponse(status) {
     return status === 200 ? 'update' : status === 304 ? 'same' : status === 404 ? 'expired' : 'retry';
   }
@@ -21,11 +21,12 @@
 
   // Fetches now, then every nextDelay() while visible. onState(prev, next) gets {etag, state} entries
   // (prev null on the first); a 404 stops polling and calls onExpired(); errors and other statuses retry.
+  // The ETag is kept only once onState has taken the state, so a failed build refetches rather than 304s.
   function start(o) {
     var cur = null, timer = null, busy = false, stopped = false;
     function schedule() {
       if (stopped) return;
-      var ms = nextDelay({ visible: visible() });
+      var ms = nextDelay({ visible: visible(), pollMs: o.pollMs });
       if (ms !== null) timer = window.setTimeout(poll, ms);
     }
     function poll() {
@@ -40,8 +41,9 @@
           if (what === 'expired') { stopped = true; o.onExpired(); return; }
           if (what !== 'update') return;
           return res.json().then(function (state) {
-            var prev = cur; cur = { etag: res.headers.get('ETag'), state: state };
-            o.onState(prev, cur);
+            var next = { etag: res.headers.get('ETag'), state: state };
+            o.onState(cur, next);
+            cur = next;
           });
         })
         .catch(function (err) { console.error('chicane: poll failed', err); })
@@ -65,17 +67,18 @@
     var R = window.ChicaneRace, H = window.ChicaneHud, C = window.Chicane;
     var cfg = JSON.parse(cfgEl.textContent), key = storeKey(cfg.stateUrl), store = storage();
     var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    var model = null, ready = Promise.resolve(); // renderer calls run in order, each after the last settles
+    var mode = { mode: cfg.units }, model = null, ready = Promise.resolve(); // renderer calls run in order, each after the last settles
     R.setMapOnly(cfg.mapOnly);
     function run(step) { ready = ready.then(step).catch(function (err) { console.error('chicane: could not draw the race', err); }); }
     start({
       stateUrl: cfg.stateUrl,
+      pollMs: cfg.pollMs,
       onState: function (prev, next) {
-        var to = C.build(next.state);
+        var to = C.build(next.state, mode);
         if (!prev) {
           var last = loadLast(store, key), from = null;
           if (last && last.etag !== next.etag && last.state) {
-            try { from = C.build(last.state); } catch (e) { from = null; } // a stale or corrupt entry: no replay
+            try { from = C.build(last.state, mode); } catch (e) { from = null; } // a stale or corrupt entry: no replay
           }
           run(function () {
             return R.mount(stage, from || to, { reducedMotion: reduced }).then(function () {

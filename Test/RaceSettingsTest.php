@@ -77,6 +77,19 @@ class RaceSettingsTest extends Base
         $this->failingSettings()->get($this->pid);
     }
 
+    public function testPageConfigCarriesTheProjectsUnits(): void
+    {
+        $this->assertSame(
+            ['stateUrl' => '/s.json', 'mapOnly' => false, 'pollMs' => 20000, 'units' => 'subtask'],
+            $this->settings->pageConfig($this->pid, '/s.json', false)
+        );
+        $this->assertTrue($this->settings->save($this->pid, ['units' => 'complexity']));
+        $config = $this->settings->pageConfig($this->pid, '/race/t/state.json', true);
+        $this->assertSame('complexity', $config['units']);
+        $this->assertTrue($config['mapOnly']);
+        $this->assertSame('/race/t/state.json', $config['stateUrl']);
+    }
+
     private function failingSettings(): RaceSettings
     {
         $this->container['projectMetadataModel'] = new class($this->container) extends \Kanboard\Model\ProjectMetadataModel {

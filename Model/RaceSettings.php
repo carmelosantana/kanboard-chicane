@@ -7,7 +7,8 @@ use Kanboard\Core\Base;
 class RaceSettings extends Base
 {
     public const VISIBILITY = ['off', 'members', 'public', 'map_only'];
-    public const UNITS = ['subtask'];
+    public const UNITS = ['subtask', 'complexity'];
+    public const POLL_MS = 20000;
     public const META_VISIBILITY = 'chicane.visibility';
     public const META_TOKEN = 'chicane.token';
     public const META_WINDOW = 'chicane.window_days';
@@ -32,6 +33,13 @@ class RaceSettings extends Base
             'window_days' => isset($meta[self::META_WINDOW]) ? $this->clampWindow((int) $meta[self::META_WINDOW]) : self::DEFAULT_WINDOW,
             'units' => in_array($meta[self::META_UNITS] ?? null, self::UNITS, true) ? $meta[self::META_UNITS] : self::UNITS[0],
         ];
+    }
+
+    // The race page's chicane-config JSON, the same for the members and share routes.
+    /** @return array{stateUrl:string, mapOnly:bool, pollMs:int, units:string} */
+    public function pageConfig(int $projectId, string $stateUrl, bool $mapOnly): array
+    {
+        return ['stateUrl' => $stateUrl, 'mapOnly' => $mapOnly, 'pollMs' => self::POLL_MS, 'units' => $this->get($projectId)['units']];
     }
 
     // Saves only the keys present; any invalid value rejects the whole save.
