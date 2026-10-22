@@ -49,9 +49,31 @@
   function carColor(d) { return CAR_COLORS[d.color % CAR_COLORS.length]; }
 
   // Every tween goes through here so destroy() can kill the lot, including delayed and repeating ones.
-  function tw(target, vars) { var t = G.to(target, vars); S.tweens.push(t); return t; }
-  function twFromTo(target, from, to) { var t = G.fromTo(target, from, to); S.tweens.push(t); return t; }
-  function pruneTweens() { S.tweens = S.tweens.filter(function (t) { return t.totalProgress() < 1; }); }
+  // Every tween is tracked so destroy() can kill the lot (delayed and repeating ones included); a tween
+  // leaves the set when it completes or is killed, so the set stays bounded on a page open for days.
+  function track(set, t) {
+    ['onComplete', 'onInterrupt'].forEach(function (ev) {
+      var own = t.eventCallback(ev);
+      t.eventCallback(ev, function () { set.delete(t); if (own) own.apply(this, arguments); });
+    });
+    set.add(t); return t;
+  }
+  function tw(target, vars) { return track(S.tweens, G.to(target, vars)); }
+  function twFromTo(target, from, to) { return track(S.tweens, G.fromTo(target, from, to)); }
+  // Least-recently-used cache: keeps the last `limit` keys, building a missing value with make().
+  function lru(limit) {
+    var m = new Map();
+    return {
+      get: function (key, make) {
+        if (m.has(key)) { var v = m.get(key); m.delete(key); m.set(key, v); return v; }
+        var nv = make(); m.set(key, nv);
+        if (m.size > limit) m.delete(m.keys().next().value);
+        return nv;
+      },
+      size: function () { return m.size; },
+      clear: function () { m.clear(); }
+    };
+  }
 
   // ---------- procedural textures (original art) ----------
   function canvasTex(w, h, draw, style) {
@@ -181,15 +203,19 @@
   }
 
   // ---------- meshes: geometry replaced only when the vertex count changes, else buffers update in place ----------
-  var idxCache = {};
+  // Index buffers by (points, layout): the road uses two layouts, and a transition adds a second point
+  // count, so four entries cover the current and the morphing path.
+  var idxCache = lru(4);
   function stripIndices(n, stride, pairs) {
-    var key = n + ':' + stride + ':' + pairs; if (idxCache[key]) return idxCache[key];
+    return idxCache.get(n + ':' + stride + ':' + pairs, function () { return buildStripIndices(n, stride, pairs); });
+  }
+  function buildStripIndices(n, stride, pairs) {
     var idx = new Uint32Array(Math.max(0, n - 1) * 6 * pairs), k = 0;
     for (var p = 0; p < pairs; p++) for (var i = 0; i < n - 1; i++) {
       var a = i * stride + p * 2, b = a + 1, c = a + stride, d = c + 1;
       idx[k++] = a; idx[k++] = b; idx[k++] = c; idx[k++] = b; idx[k++] = d; idx[k++] = c;
     }
-    return (idxCache[key] = idx);
+    return idx;
   }
   function makeMesh(tex, tint, alpha) {
     var m = new P.Mesh({ geometry: new P.MeshGeometry({ positions: new Float32Array(8), uvs: new Float32Array(8), indices: new Uint32Array([0, 1, 2, 1, 3, 2]) }), texture: tex });
@@ -495,7 +521,8 @@
     var r = { key: d.key, frac: d.frac, side: d.side, row: d.row, recent: d.recent, taskId: d.taskId, grp: Math.floor(Math.random() * 3), sc: popDelay == null ? 1 : 0, al: 1 };
     r.p = new P.Particle({ texture: S.atlas.person, anchorX: 0.5, anchorY: 1, tint: CROWD[(d.key.length * 7 + d.row * 3 + Math.floor(d.frac * 99991)) % CROWD.length] });
     S.crowd.addParticle(r.p); S.specs[r.key] = r;
-    if (popDelay != null) tw(r, { sc: 1, duration: S.reduced ? 0.3 : 0.7, delay: S.reduced ? 0 : popDelay, ease: 'back.out(3)' });
+    if (popDelay != null) tw(r, { sc: 1, duration: S.reduced ? 0.3 : 0.7, delay: S.reduced ? 0 : popDelay, ease: 'back.out(3)',
+      onComplete: function () { specPlace(r); S.standsDirty = true; } });
     return r;
   }
   function sortCrowd() { S.crowd.particleChildren.sort(function (a, b) { return a.y - b.y; }); if (S.crowd.onViewUpdate) S.crowd.onViewUpdate(); }
@@ -753,7 +780,7 @@
     if (S.reduced) { S.cam.x = end.x; S.cam.y = end.y; S.cam.z = end.z; return; }
     var dur = clamp(3 + target / 30000, 4, 6.5), a = place(0, 0, 0);
     S.cam.x = a.x; S.cam.y = a.y; S.cam.z = 1.6;
-    S.introTl = G.timeline({ onComplete: function () { S.introTl = null; } }); S.tweens.push(S.introTl);
+    S.introTl = track(S.tweens, G.timeline({ onComplete: function () { S.introTl = null; } }));
     S.introTl.to(u, { t: 1, duration: dur * 0.8, ease: 'power3.inOut', onUpdate: function () {
       var p = place(u.t * target, 0, 0), dip = Math.sin(Math.PI * u.t), k = Math.pow(u.t, 6);
       S.cam.x = lerp(p.x, end.x, k); S.cam.y = lerp(p.y, end.y, k); S.cam.z = lerp(1.6, end.z, u.t) * (1 - 0.82 * dip);
@@ -848,7 +875,12 @@
     S.frame++; applyCam();
     var z = S.cam.z, W = S.app.screen.width, H = S.app.screen.height, k;
     if (!S.transitioning) {
-      if (!S.reduced) for (k in S.specs) { var r = S.specs[k]; if (r.recent) specPlace(r); } // recent spectators cheer
+      for (k in S.specs) { // recent spectators cheer; new ones finish popping in, and their stands grow with them
+        var r = S.specs[k], popping = r.sc < 1 || r.al < 1;
+        if (popping || (r.recent && !S.reduced)) specPlace(r);
+        if (popping) S.standsDirty = true;
+      }
+      if (S.standsDirty) { S.standsDirty = false; drawStands(); }
       for (k in S.haz) { var hz = S.haz[k]; if (hz.sc < 1 || hz.al < 1) placeHazard(hz); }
       for (k in S.cars) { var cr = S.cars[k]; if (cr.al < 1) updateCar(cr); }
     }
@@ -899,7 +931,7 @@
   function mount(stageEl, model, opts) {
     if (S) destroy();
     S = { cam: { x: 0, y: 0, z: 1 }, cars: {}, specs: {}, bars: {}, haz: {}, bounce: [{ v: 0 }, { v: 0 }, { v: 0 }], wave: { v: 0 }, frame: 0,
-      tweens: [], sources: [], legendCounts: {}, reduced: !!(opts && opts.reducedMotion) };
+      tweens: new Set(), sources: [], legendCounts: {}, reduced: !!(opts && opts.reducedMotion) };
     S.model = model; S.roadW = model.roadWidth; S.laneW = model.laneWidth; S.lanes = model.lanes;
     S.path = displayPath(model.path); S.progFrac = model.progressS / (model.path.length || 1);
     choosePitSide(model);
@@ -950,7 +982,6 @@
     if (!S || !S.app || !S.world) return;
     var dur = S.reduced ? 0.3 : Math.max(0.45, (opts && opts.duration) || 1.6), L1 = to.path.length || 1;
     if (S.tr) { S.tr.kill(); S.tr = null; }
-    pruneTweens();
     S.model = to; S.lanes = to.lanes; S.roadW = to.roadWidth; S.laneW = to.laneWidth;
     var A = displayPath(C.morph(from, to, 0)), B = displayPath(C.morph(from, to, 1)), th = paveThresholds(A, B);
     var M = { points: A.points.map(function (q) { return { x: q.x, y: q.y }; }) };
@@ -1025,7 +1056,7 @@
       sp.forEach(function (r) { r.row = r.row1; r.side = r.side1; r.frac1 = null; });
       choosePitSide(to); rebuildStatic(true);
     } });
-    S.tweens.push(S.tr);
+    track(S.tweens, S.tr);
   }
 
   function setMapOnly(on) {
@@ -1040,14 +1071,16 @@
   function destroy() {
     if (!S) return;
     var s = S; S = null;
-    s.tweens.forEach(function (t) { t.kill(); });
+    Array.from(s.tweens).forEach(function (t) { t.kill(); });
+    idxCache.clear();
     if (s.world) { // initialised
       s.app.destroy({ removeView: true }, { children: true });
       s.sources.forEach(function (src) { src.destroy(); });
     }
   }
 
-  window.ChicaneRace = { mount: mount, transition: transition, setMapOnly: setMapOnly, destroy: destroy };
+  window.ChicaneRace = { mount: mount, transition: transition, setMapOnly: setMapOnly, destroy: destroy,
+    _internals: { lru: lru, track: track } }; // pure helpers, exposed for Test/js/race.test.mjs
 
   // ---------- page boot: fetch the state once and mount (live.js, when present, owns this instead) ----------
   function boot() {
