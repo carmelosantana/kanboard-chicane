@@ -2,8 +2,10 @@
 namespace Kanboard\Plugin\Chicane\Controller;
 
 use Kanboard\Controller\BaseController;
+use Kanboard\Plugin\Chicane\Model\RaceRedactor;
 use Kanboard\Plugin\Chicane\Model\RaceSettings;
 use Kanboard\Plugin\Chicane\Model\RaceStateModel;
+use Kanboard\Plugin\Chicane\Model\RaceSummary;
 
 // Public share-token routes (APP_PUBLIC in Plugin.php). Unknown token and non-shared visibility both 404.
 class RaceShareController extends BaseController
@@ -27,7 +29,7 @@ class RaceShareController extends BaseController
         ]));
     }
 
-    // Map-only redaction lands in Task 5; until then map_only gets an empty object, never the full state.
+    // map_only is redacted here, on the server; the ETag is taken from what is actually sent.
     public function state(): void
     {
         $token = $this->token();
@@ -35,23 +37,29 @@ class RaceShareController extends BaseController
         if ($mode === null) {
             return;
         }
-        if ($mode !== 'full') {
-            $this->sendJson([]);
-            return;
-        }
-        $settings = new RaceSettings($this->container);
-        $projectId = (int) $settings->projectIdForToken($token);
         $model = new RaceStateModel($this->container);
-        $state = $model->build($projectId, $settings->get($projectId)['window_days']);
+        $state = $this->buildState($model, $token);
+        if ($mode === 'map_only') {
+            $state = RaceRedactor::mapOnly($state);
+        }
         $this->sendJson($state, $model->etag($state));
     }
 
-    // Stub until Task 5.
     public function summary(): void
     {
-        if ($this->allowedMode($this->token()) !== null) {
-            $this->sendJson([]);
+        $token = $this->token();
+        $mode = $this->allowedMode($token);
+        if ($mode === null) {
+            return;
         }
+        $this->sendJson(RaceSummary::build($this->buildState(new RaceStateModel($this->container), $token), $mode));
+    }
+
+    private function buildState(RaceStateModel $model, string $token): array
+    {
+        $settings = new RaceSettings($this->container);
+        $projectId = (int) $settings->projectIdForToken($token);
+        return $model->build($projectId, $settings->get($projectId)['window_days']);
     }
 
     private function token(): string

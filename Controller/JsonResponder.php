@@ -1,13 +1,15 @@
 <?php
 namespace Kanboard\Plugin\Chicane\Controller;
 
+use Kanboard\Plugin\Chicane\Model\Json;
+
 // The one JSON path for Chicane's endpoints: always a JSON object, an ETag, and 304 when If-None-Match matches.
 // Pass $etag to choose what counts as "changed" (the race state ignores its `generated` stamp); default is the body.
 trait JsonResponder
 {
     protected function sendJson(array $data, ?string $etag = null): void
     {
-        $body = json_encode((object) $data);
+        $body = Json::encode((object) $data);
         $etag ??= sha1($body);
 
         $this->response->withHeader('ETag', '"'.$etag.'"');

@@ -3,6 +3,7 @@ require_once 'tests/units/Base.php';
 
 use KanboardTests\units\Base;
 use Kanboard\Core\Security\Role;
+use Kanboard\Plugin\Chicane\Model\Json;
 use Kanboard\Plugin\Chicane\Model\RaceStateModel;
 
 class RaceStateModelTest extends Base
@@ -212,5 +213,20 @@ class RaceStateModelTest extends Base
 
         $this->assertSame(['user_id', 'date'], array_keys($this->byId($state, $taskId)['comments'][0]));
         $this->assertStringNotContainsString('secret words', json_encode($state));
+    }
+
+    public function testInvalidUtf8TitleStillEncodes(): void
+    {
+        $this->task("broken \xB1 title");
+        $model = $this->model();
+
+        $state = $model->build($this->projectId, 30);
+        $body = Json::encode((object) $state);
+        $withoutGenerated = $state;
+        unset($withoutGenerated['generated']);
+
+        $this->assertSame("broken \u{FFFD} title", json_decode($body, true)['tasks'][0]['title']);
+        $this->assertNotSame(sha1(''), $model->etag($state));
+        $this->assertSame(sha1(Json::encode($withoutGenerated)), $model->etag($state));
     }
 }

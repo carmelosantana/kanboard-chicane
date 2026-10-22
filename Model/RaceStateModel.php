@@ -50,7 +50,7 @@ class RaceStateModel extends Base
     public function etag(array $state): string
     {
         unset($state['generated']);
-        return sha1(json_encode($state));
+        return sha1(Json::encode($state));
     }
 
     private function tasks(int $projectId, int $since): array
