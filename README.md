@@ -133,6 +133,12 @@ repo: `testing/import-board.sh <prod_project_id>` copies a board, read-only, int
 `:8081`, where Chicane is mounted. Set the imported project's visibility under **Race track** and open
 **Race**.
 
+## Known limitations
+
+- When the board changes, the page pauses briefly while it rebuilds the track: on a 700-task board,
+  measured in headless Chrome, about 0.1 s before the update animates and one frame of about 0.15 s as
+  it ends. Updates arrive at most every 20 s, so the pause is rare, but it can be seen on large boards.
+
 ## Development
 
 - PHP tests: `./testing/run-plugin-tests.sh Chicane` from `kanboard-plugins`.
