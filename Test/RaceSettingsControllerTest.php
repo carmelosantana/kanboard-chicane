@@ -8,6 +8,8 @@ use Kanboard\Model\ProjectModel;
 use Kanboard\Plugin\Chicane\Controller\RaceSettingsController;
 use Kanboard\Plugin\Chicane\Controller\RaceShareController;
 use Kanboard\Plugin\Chicane\Model\RaceSettings;
+use Kanboard\Plugin\Chicane\Model\RaceStateModel;
+use Kanboard\Plugin\Chicane\Model\RaceSummary;
 use Kanboard\Plugin\Chicane\Plugin;
 
 // The settings form and share routes driven through their controllers, the way a browser posts and reads them.
@@ -82,6 +84,23 @@ class RaceSettingsControllerTest extends Base
         // One open task, score 5, no subtasks: 5 units, none done until it closes.
         $this->assertSame(5, $summary['distance_to_finish']);
         $this->assertStringContainsString('"progress_pct":0.0', $body);
+    }
+
+    public function testSummaryAnswers304WhenOnlyTheTimeMoved(): void
+    {
+        $token = $this->settings->get($this->pid)['token'];
+        $this->settings->save($this->pid, ['visibility' => 'public']);
+        $this->container['taskCreationModel']->create(['project_id' => $this->pid, 'title' => 'Hairpin']);
+        $settings = $this->settings->get($this->pid);
+        // The same board as built an hour ago: only updated_at differs from what the controller builds now.
+        $earlier = (new RaceStateModel($this->container))->build($this->pid, $settings['window_days'], time() - 3600);
+        $etag = '"'.RaceSummary::etag(RaceSummary::build($earlier, 'full', $settings['units'])).'"';
+
+        $this->useRequest(['REQUEST_METHOD' => 'GET', 'HTTP_IF_NONE_MATCH' => $etag], ['token' => $token], []);
+        (new RaceShareController($this->container))->summary();
+
+        $this->assertSame(304, $this->container['response']->code);
+        $this->assertSame('', $this->container['response']->body);
     }
 
     // The token is resolved once per request; unknown tokens and unshared projects 404 on every share route.

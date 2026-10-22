@@ -30,6 +30,13 @@ final class RaceSummary
         ];
     }
 
+    // Ignores updated_at (it moves on every build), so an unchanged board keeps its ETag and can answer 304.
+    public static function etag(array $summary): string
+    {
+        unset($summary['updated_at']);
+        return sha1(Json::encode($summary));
+    }
+
     /** @return array{int, int} [units, done units] */
     private static function subtaskUnits(array $task): array
     {

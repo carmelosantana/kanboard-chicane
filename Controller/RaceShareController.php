@@ -51,7 +51,8 @@ class RaceShareController extends BaseController
         }
         $settings = (new RaceSettings($this->container))->get($projectId);
         $state = (new RaceStateModel($this->container))->build($projectId, $settings['window_days']);
-        $this->sendJson(RaceSummary::build($state, $mode, $settings['units']));
+        $summary = RaceSummary::build($state, $mode, $settings['units']);
+        $this->sendJson($summary, RaceSummary::etag($summary));
     }
 
     private function token(): string

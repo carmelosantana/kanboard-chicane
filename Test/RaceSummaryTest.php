@@ -38,6 +38,22 @@ class RaceSummaryTest extends Base
         $this->assertSame([['user' => 'Carmelo Santana', 'task_id' => 102]], RaceSummary::build($this->fixture(), 'full', 'subtask')['cars']);
     }
 
+    // updated_at changes on every build; the ETag ignores it so an unchanged board can answer 304.
+    public function testEtagIgnoresUpdatedAt(): void
+    {
+        $state = $this->fixture();
+        $first = RaceSummary::build($state, 'full', 'subtask');
+        $state['generated'] += 60;
+        $later = RaceSummary::build($state, 'full', 'subtask');
+        $state['tasks'][1]['subtasks'][2]['status'] = 2;
+        $changed = RaceSummary::build($state, 'full', 'subtask');
+
+        $this->assertNotSame($first['updated_at'], $later['updated_at']);
+        $this->assertSame(RaceSummary::etag($first), RaceSummary::etag($later));
+        $this->assertNotSame(RaceSummary::etag($first), RaceSummary::etag($changed));
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{40}$/', RaceSummary::etag($first));
+    }
+
     public function testExactKeys(): void
     {
         $this->assertSame(
