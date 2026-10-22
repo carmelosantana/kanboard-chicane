@@ -138,4 +138,6 @@ repo: `testing/import-board.sh <prod_project_id>` copies a board, read-only, int
 - JS tests: `node --test 'Chicane/Test/js/*.test.mjs'` (zero dependencies).
 - Releases: tag `vX.Y.Z` equal to the `plugin.json` version; CI zips the plugin and attaches it.
 
-License: MIT.
+License: MIT for Chicane's own code. The vendored libraries keep their own licences, listed in
+[`Assets/vendor/VERSIONS.md`](Assets/vendor/VERSIONS.md): PixiJS is MIT, and GSAP is under its Standard
+"no charge" licence, which allows use and redistribution but is not an OSI-approved licence.

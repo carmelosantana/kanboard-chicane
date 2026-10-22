@@ -20,4 +20,17 @@ class PluginVersionTest extends Base
             $this->assertNotEmpty($dep['reason']);
         }
     }
+
+    // The listing copy matches the README: people drive the cars, tasks are corners.
+    public function testListingCopyMatchesTheReadme(): void
+    {
+        $json = json_decode(file_get_contents(__DIR__.'/../plugin.json'), true);
+        $reasons = array_column($json['recommends'], 'reason', 'plugin');
+
+        $this->assertStringContainsString('each task is a corner', $json['description']);
+        $this->assertStringContainsString('cars are the people', $json['description']);
+        $this->assertStringNotContainsString('tasks are cars', $json['description']);
+        $this->assertStringContainsString('level and XP plate', $reasons['TimeReport']);
+        $this->assertStringContainsString('"is blocked by" links', $reasons['DependencyPlugin']);
+    }
 }

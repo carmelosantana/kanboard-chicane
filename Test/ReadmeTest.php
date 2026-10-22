@@ -21,4 +21,13 @@ class ReadmeTest extends Base
             $this->assertStringContainsString('`'.$visibility.'`', $readme, $visibility);
         }
     }
+
+    // GSAP ships under its Standard licence, not MIT: the licence line points at the vendored table.
+    public function testLicenceLineNamesTheVendoredLicences(): void
+    {
+        $readme = file_get_contents(__DIR__.'/../README.md');
+
+        $this->assertMatchesRegularExpression('/^License: MIT.*?Assets\/vendor\/VERSIONS\.md/ms', $readme);
+        $this->assertStringContainsString('GSAP', $readme);
+    }
 }

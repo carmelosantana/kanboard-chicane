@@ -1,6 +1,6 @@
 {
     "name": "Chicane",
-    "description": "Watch a project as a race track: tasks are cars, columns are sectors, and finished work crosses the line. Private by default, with optional share links.",
+    "description": "Watch a project as a race track: each task is a corner, a task with subtasks is a chicane, and the cars are the people working on them. Finished road is paved; stalled work leaves hazards. Private by default, with optional share links.",
     "version": "1.0.0",
     "author": "Carmelo Santana",
     "homepage": "https://github.com/carmelosantana/kanboard-chicane",
@@ -11,7 +11,7 @@
     "recommends": [
         { "plugin": "Presence", "min_version": "1.0.0", "reason": "shows which project members are online beside the track" },
         { "plugin": "Agents", "min_version": "0.4.1", "reason": "badges agent-driven cars as bots" },
-        { "plugin": "TimeReport", "min_version": "1.5.0", "reason": "adds tracked time to each car's telemetry" },
-        { "plugin": "DependencyPlugin", "min_version": "1.0.0", "reason": "marks cars held behind blocking tasks" }
+        { "plugin": "TimeReport", "min_version": "1.5.0", "reason": "adds a level and XP plate to each car from time tracked in the window" },
+        { "plugin": "DependencyPlugin", "min_version": "1.0.0", "reason": "a UI for managing core \"is blocked by\" links; the track reads those links and puts a barrier on blocked work either way" }
     ]
 }
