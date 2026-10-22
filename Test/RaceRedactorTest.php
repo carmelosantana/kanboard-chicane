@@ -33,6 +33,7 @@ class RaceRedactorTest extends Base
         $this->assertSame(['', ''], array_column($redacted['users'], 'username'));
         $this->assertSame(['', '', '', ''], array_column($redacted['tasks'], 'title'));
         $this->assertSame($fixture['columns'], $redacted['columns']);
+        $this->assertSame([null, 'in_progress', 'done'], array_column($redacted['columns'], 'role'));
         $this->assertSame($fixture['tasks'][1]['subtasks'], $redacted['tasks'][1]['subtasks']);
     }
 

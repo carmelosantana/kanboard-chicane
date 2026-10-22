@@ -7,9 +7,9 @@
     {"id": 2, "name": "Codex", "position": 2}
   ],
   "columns": [
-    {"id": 1, "title": "Backlog", "position": 1},
-    {"id": 2, "title": "In progress", "position": 2},
-    {"id": 3, "title": "Done", "position": 3}
+    {"id": 1, "title": "Backlog", "position": 1, "role": null},
+    {"id": 2, "title": "In progress", "position": 2, "role": "in_progress"},
+    {"id": 3, "title": "Done", "position": 3, "role": "done"}
   ],
   "users": [
     {"id": 1, "name": "Carmelo Santana", "username": "carmelo", "online": null, "xp": null, "level": null},

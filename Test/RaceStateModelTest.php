@@ -101,7 +101,7 @@ class RaceStateModelTest extends Base
         $this->assertSame($this->projectId, $state['project_id']);
         $this->assertSame([], $state['agent_uids']);
         $this->assertSame(['id', 'name', 'position'], array_keys($state['swimlanes'][0]));
-        $this->assertSame(['id', 'title', 'position'], array_keys($state['columns'][0]));
+        $this->assertSame(['id', 'title', 'position', 'role'], array_keys($state['columns'][0]));
         $this->assertCount(3, $state['columns']);
         $this->assertSame([$this->laneA, $this->laneB], array_column($state['swimlanes'], 'id'));
         $this->assertSame(
@@ -127,6 +127,69 @@ class RaceStateModelTest extends Base
         $this->assertSame([['status' => 0, 'position' => 1, 'user_id' => $this->bob]], $task['subtasks']);
         $this->assertSame($this->alice, $task['comments'][0]['user_id']);
         $this->assertIsInt($task['comments'][0]['date']);
+    }
+
+    private function rolesOf(array $titles): array
+    {
+        $projectId = (int) $this->container['projectModel']->create(['name' => 'Roles']);
+        $ids = array_map('intval', array_keys($this->container['columnModel']->getList($projectId)));
+        // Column titles are unique per project: drop the spare defaults, park the rest, then rename.
+        foreach (array_slice($ids, count($titles)) as $id) {
+            $this->container['columnModel']->remove($id);
+        }
+        $ids = array_slice($ids, 0, count($titles));
+        foreach ($ids as $i => $id) {
+            $this->container['columnModel']->update($id, 'tmp '.$i);
+        }
+        foreach ($ids as $i => $id) {
+            $this->container['columnModel']->update($id, $titles[$i]);
+        }
+        for ($i = count($ids); $i < count($titles); $i++) {
+            $this->container['columnModel']->create($projectId, $titles[$i]);
+        }
+        $columns = $this->model()->build($projectId, 30)['columns'];
+        return array_combine(array_column($columns, 'title'), array_column($columns, 'role'));
+    }
+
+    // Kanboard's default board: Backlog, Ready, Work in progress, Done.
+    public function testDefaultColumnsGetRoles(): void
+    {
+        $projectId = (int) $this->container['projectModel']->create(['name' => 'Default']);
+
+        $columns = $this->model()->build($projectId, 30)['columns'];
+
+        $this->assertSame(['Backlog', 'Ready', 'Work in progress', 'Done'], array_column($columns, 'title'));
+        $this->assertSame([null, null, 'in_progress', 'done'], array_column($columns, 'role'));
+    }
+
+    public function testRolesMatchAliasesIgnoringCase(): void
+    {
+        $this->assertSame(['Ideas' => null, 'IN PROGRESS' => 'in_progress', 'done' => 'done'], $this->rolesOf(['Ideas', 'IN PROGRESS', 'done']));
+        $this->assertSame(['Todo' => null, 'Doing' => 'in_progress', 'WIP' => 'in_progress', 'Done' => 'done'], $this->rolesOf(['Todo', 'Doing', 'WIP', 'Done']));
+    }
+
+    // No alias matches: the last column is done and the one before it is in progress.
+    public function testRenamedColumnsFallBackByPosition(): void
+    {
+        $this->assertSame(['Todo' => null, 'Building' => 'in_progress', 'Shipped' => 'done'], $this->rolesOf(['Todo', 'Building', 'Shipped']));
+        // Each role falls back on its own (in progress sits just before done), never onto a column that has one.
+        $this->assertSame(['Todo' => null, 'Doing' => 'in_progress', 'Shipped' => 'done'], $this->rolesOf(['Todo', 'Doing', 'Shipped']));
+        $this->assertSame(['Todo' => null, 'Building' => 'in_progress', 'Done' => 'done'], $this->rolesOf(['Todo', 'Building', 'Done']));
+        $this->assertSame(['Todo' => null, 'Building' => 'in_progress', 'Done' => 'done', 'Archive' => null], $this->rolesOf(['Todo', 'Building', 'Done', 'Archive']));
+        $this->assertSame(['Todo' => null, 'Work in progress' => 'in_progress'], $this->rolesOf(['Todo', 'Work in progress']));
+        $this->assertSame(['Only' => 'done'], $this->rolesOf(['Only']));
+    }
+
+    public function testDefaultBoardPutsCarsInTheSummary(): void
+    {
+        $projectId = (int) $this->container['projectModel']->create(['name' => 'Default']);
+        $this->container['projectUserRoleModel']->addUser($projectId, $this->alice, Role::PROJECT_MEMBER);
+        $wip = (int) $this->container['columnModel']->getColumnIdByTitle($projectId, 'Work in progress');
+        $taskId = (int) $this->container['taskCreationModel']->create(['project_id' => $projectId, 'title' => 'w', 'column_id' => $wip, 'owner_id' => $this->alice]);
+
+        $summary = \Kanboard\Plugin\Chicane\Model\RaceSummary::build($this->model()->build($projectId, 30), 'full', 'subtask');
+
+        $this->assertSame([['user' => 'Alice A', 'task_id' => $taskId]], $summary['cars']);
     }
 
     public function testBlockedByComesFromLinks(): void

@@ -35,6 +35,21 @@ Project managers open **Project → Race track** in the project sidebar.
 When visibility is `public` or `map_only`, the settings page shows the share link and the summary link as
 read-only fields to copy. **Replace share link** issues a new token, and the old link stops working at once.
 
+## Columns
+
+The track never reads a column's title for its own logic. Each column gets a role instead:
+
+| Role | Column titles (any case) | On the track |
+|---|---|---|
+| in progress | `In progress`, `Work in progress`, `Doing`, `WIP` | cars park on its open tasks; tasks idle 3+ days drop debris |
+| done | `Done` | its open tasks with unfinished subtasks leave potholes |
+
+When no title matches a role, it falls back by position: done is the last column, and in progress is the
+column just before the done one. A fallback never takes a column that already has a role. Kanboard's default
+board (Backlog, Ready, Work in progress, Done) matches by title; a board named Todo, Building, Shipped gets
+Building as in progress and Shipped as done. Open work runs done first, then in progress, then the other
+columns from the end of the board back.
+
 ## Visibility modes
 
 | Mode | Members' race page | Share link (`/race/{token}`) |
@@ -83,7 +98,7 @@ since your last visit; that last-seen state is kept in your browser's `localStor
 | `project_id` | the project's id |
 | `progress_pct` | units done ÷ all units, as a percentage rounded to one decimal (always a number with a decimal point, e.g. `80.0`) |
 | `distance_to_finish` | units still to drive (the HUD's "units to the flag") |
-| `cars` | one entry per member with an open task in **In progress**: `user` is the name, `task_id` that task |
+| `cars` | one entry per member with an open task in the in-progress column (see Columns): `user` is the name, `task_id` that task |
 | `updated_at` | Unix time the state was built |
 
 Units follow the project's `chicane.units`. In `map_only`, `user` is the initials and `task_id` is `null`.

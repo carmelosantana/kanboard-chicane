@@ -10,8 +10,8 @@
   // Turn radius target, × half the road. The floor is 1.15 (edges never fold); the extra 0.05 absorbs the
   // spline's sampling error, which measures up to ~2% tighter than the arc it follows.
   var MIN_RADIUS = 1.2;
-  var IN_PROGRESS = 'In progress', DONE_COL = 'Done', SUBTASK_DONE = 2;
-  var COL_ORDER = { 'Done': 0, 'In progress': 1, 'Ready': 2, 'Backlog': 3, 'Ideas': 4 };
+  var IN_PROGRESS = 'in_progress', DONE = 'done', SUBTASK_DONE = 2;
+  var ROLE_ORDER = { done: 0, in_progress: 1 };
 
   function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function wrap(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
@@ -27,18 +27,19 @@
   }
   function isWontfix(t) { return t.wontfix === true || (t.tags || []).indexOf('wontfix') >= 0; }
 
-  // Ordered list of {task, column, lane, units:[{done}]}: closed by completion, then open by column, lane,
-  // position. Unknown column titles sort after the known ones, by board position; a task in a swimlane that
-  // is not listed (disabled) goes in lane 0.
+  // Ordered list of {task, role, lane, units:[{done}]}: closed by completion, then open by column, lane,
+  // position. Columns rank by role (RaceStateModel sets it; titles are never read): done, then in progress,
+  // then the rest nearest the end of the board first. A task in a swimlane that is not listed (disabled)
+  // goes in lane 0.
   function orderTasks(state, mode) {
-    var colTitle = {}, colRank = {};
+    var colRole = {}, colRank = {}, nCols = state.columns.length;
     state.columns.forEach(function (c, i) {
-      colTitle[c.id] = c.title;
-      colRank[c.id] = COL_ORDER.hasOwnProperty(c.title) ? COL_ORDER[c.title] : 5 + i;
+      colRole[c.id] = c.role || null;
+      colRank[c.id] = ROLE_ORDER.hasOwnProperty(c.role) ? ROLE_ORDER[c.role] : 2 + (nCols - 1 - i);
     });
     var lanePos = {}; state.swimlanes.forEach(function (l, i) { lanePos[l.id] = i; });
     function lane(t) { return lanePos.hasOwnProperty(t.swimlane_id) ? lanePos[t.swimlane_id] : 0; }
-    function rank(t) { return colRank.hasOwnProperty(t.column_id) ? colRank[t.column_id] : 5 + state.columns.length; }
+    function rank(t) { return colRank.hasOwnProperty(t.column_id) ? colRank[t.column_id] : 2 + nCols; }
     var closed = state.tasks.filter(function (t) { return !t.open; }).sort(function (a, b) {
       return ((a.date_completed || 0) - (b.date_completed || 0)) || (a.id - b.id);
     });
@@ -65,7 +66,7 @@
         units = subs.map(function (s) { return { done: s.status === SUBTASK_DONE, paved: !t.open }; })
           .sort(function (a, b) { return b.done - a.done; });
       }
-      return { task: t, column: colTitle[t.column_id], lane: lane(t), units: units };
+      return { task: t, role: colRole.hasOwnProperty(t.column_id) ? colRole[t.column_id] : null, lane: lane(t), units: units };
     });
   }
 
@@ -166,7 +167,7 @@
     var lanes = state.swimlanes.map(function (l, i) { return { id: l.id, name: l.name, offset: (i - (nLanes - 1) / 2) * LANE_W }; });
     var segs = ordered.map(function (o, i) {
       var t = o.task;
-      return { index: i, taskId: t.id, title: t.title, column: o.column, open: t.open, lane: o.lane,
+      return { index: i, taskId: t.id, title: t.title, role: o.role, open: t.open, lane: o.lane,
         units: o.units.length, doneUnits: o.units.filter(function (u) { return u.done; }).length, s0: Infinity, s1: 0,
         blocked: isBlocked(t),
         comments: t.comments, ownerId: t.owner_id };
@@ -178,7 +179,7 @@
 
     // cars: one per member with an in-progress task, parked at the front of that task's open part
     var cars = state.users.map(function (u, ui) {
-      var mine = segs.filter(function (g) { return g.open && g.column === IN_PROGRESS && g.ownerId === u.id && laid(g); });
+      var mine = segs.filter(function (g) { return g.open && g.role === IN_PROGRESS && g.ownerId === u.id && laid(g); });
       var g = mine.sort(function (a, b) { return (b.doneUnits / b.units - a.doneUnits / a.units) || (a.index - b.index); })[0];
       return { userId: u.id, name: u.name, initials: initials(u.name), isAgent: agents.indexOf(u.id) >= 0,
         online: u.online === undefined ? null : u.online, level: u.level === undefined ? null : u.level, xp: u.xp === undefined ? null : u.xp,
@@ -204,12 +205,12 @@
       var t = ordered[i].task, r = rng(t.id * 31 + 7), len = g.s1 - g.s0, mid = (g.s0 + g.s1) / 2;
       var lane = function () { return Math.floor(r() * nLanes); };
       var openSubs = t.subtasks.filter(function (x) { return x.status !== SUBTASK_DONE; }).length;
-      // potholes: closed (or parked in Done) with subtasks still open, one per unfinished subtask
-      var holes = !t.open || g.column === DONE_COL ? openSubs : 0;
+      // potholes: closed (or parked in the done column) with subtasks still open, one per unfinished subtask
+      var holes = !t.open || g.role === DONE ? openSubs : 0;
       for (var k = 0; k < holes; k++) hazards.push({ type: 'pothole', taskId: t.id, s: g.s0 + len * (k + 0.5) / holes, lane: lane() });
       // debris: in progress but not moved for 3+ days, more tyres the longer it sits
       var idle = Math.floor((now - t.date_moved) / 86400);
-      if (t.open && g.column === IN_PROGRESS && idle >= 3)
+      if (t.open && g.role === IN_PROGRESS && idle >= 3)
         hazards.push({ type: 'debris', taskId: t.id, s: g.s0 + len * (g.doneUnits / g.units), lane: g.lane, days: idle, level: Math.min(5, Math.ceil(idle / 3)) });
       // wreck: abandoned (wontfix, or closed without finishing any of its subtasks)
       if (isWontfix(t) || (!t.open && t.subtasks.length && !t.subtasks.some(function (x) { return x.status === SUBTASK_DONE; })))

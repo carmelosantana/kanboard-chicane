@@ -8,7 +8,7 @@ namespace Kanboard\Plugin\Chicane\Model;
 // closed, else 0.
 final class RaceSummary
 {
-    private const IN_PROGRESS = 'In progress';
+    private const IN_PROGRESS = 'in_progress';
     private const SUBTASK_DONE = 2;
 
     public static function build(array $state, string $mode, string $units): array
@@ -55,12 +55,12 @@ final class RaceSummary
         return count(array_filter($task['subtasks'], fn (array $s) => (int) $s['status'] === self::SUBTASK_DONE));
     }
 
-    // One car per listed user with an open task in the In progress column, on their first such task.
+    // One car per listed user with an open task in an in-progress column (by role), on their first such task.
     private static function cars(array $state, bool $mapOnly): array
     {
         $inProgress = [];
         foreach ($state['columns'] as $column) {
-            if ($column['title'] === self::IN_PROGRESS) {
+            if (($column['role'] ?? null) === self::IN_PROGRESS) {
                 $inProgress[$column['id']] = true;
             }
         }

@@ -9,6 +9,10 @@ class RaceStateModel extends Base
 {
     private const BLOCKED_BY = 'is blocked by';
     private const REOPEN_EVENT = 'task.open';
+    private const ROLE_ALIASES = [
+        'in_progress' => ['in progress', 'work in progress', 'doing', 'wip'],
+        'done' => ['done'],
+    ];
 
     public function build(int $projectId, int $windowDays, ?int $now = null): array
     {
@@ -154,6 +158,7 @@ class RaceStateModel extends Base
         ], $rows);
     }
 
+    // Each column gets a role the track reads instead of its title: 'in_progress', 'done' or null.
     private function columns(int $projectId): array
     {
         $rows = $this->db->table('columns')
@@ -162,11 +167,45 @@ class RaceStateModel extends Base
             ->asc('position')
             ->findAll();
 
-        return array_map(fn (array $row) => [
+        $columns = array_map(fn (array $row) => [
             'id' => (int) $row['id'],
             'title' => (string) $row['title'],
             'position' => (int) $row['position'],
         ], $rows);
+        $roles = self::columnRoles(array_column($columns, 'title'));
+        foreach ($columns as $i => &$column) {
+            $column['role'] = $roles[$i];
+        }
+        unset($column);
+        return $columns;
+    }
+
+    // Titles match the aliases ignoring case and surrounding space. A role no title matches falls back by
+    // position, never onto a column that already has a role: done is the last column, in progress the one
+    // just before the done column (or before the last, when there is no done column).
+    /** @param list<string> $titles @return list<string|null> */
+    public static function columnRoles(array $titles): array
+    {
+        $roles = array_map(function (string $title): ?string {
+            $title = mb_strtolower(trim($title));
+            foreach (self::ROLE_ALIASES as $role => $aliases) {
+                if (in_array($title, $aliases, true)) {
+                    return $role;
+                }
+            }
+            return null;
+        }, $titles);
+
+        $last = count($roles) - 1;
+        if ($last >= 0 && ! in_array('done', $roles, true) && $roles[$last] === null) {
+            $roles[$last] = 'done';
+        }
+        $done = array_search('done', $roles, true);
+        $before = ($done === false ? $last : $done) - 1;
+        if ($before >= 0 && ! in_array('in_progress', $roles, true) && $roles[$before] === null) {
+            $roles[$before] = 'in_progress';
+        }
+        return $roles;
     }
 
     // Active users who are members directly or through a group; one entry each, ordered by id.

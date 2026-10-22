@@ -15,7 +15,8 @@ const NOW = 1761100000, DAY = 86400;
 function generate(nTasks, nLanes = 2, seed = 1) {
   let x = seed;
   const rnd = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
-  const columns = ['Backlog', 'Ready', 'In progress', 'Done'].map((title, i) => ({ id: i + 1, title, position: i + 1 }));
+  const roles = [null, null, 'in_progress', 'done'];
+  const columns = ['Backlog', 'Ready', 'In progress', 'Done'].map((title, i) => ({ id: i + 1, title, position: i + 1, role: roles[i] }));
   const swimlanes = Array.from({ length: nLanes }, (_, i) => ({ id: i + 1, name: 'Lane ' + (i + 1), position: i + 1 }));
   const users = [1, 2, 3].map(id => ({ id, name: 'User ' + id, username: 'u' + id, online: null, xp: null, level: null }));
   const tasks = [];
@@ -108,6 +109,44 @@ test('cars', () => {
   assert.equal(ida.level, 2);
   assert.equal(m.cars.some(c => c.userId === 99), false);
   assert.equal(m.cars.length, 3);
+});
+
+// The track reads each column's role (set by RaceStateModel), never its title.
+function board(titles, roles) {
+  const s = generate(0);
+  s.columns = titles.map((title, i) => ({ id: i + 1, title, position: i + 1, role: roles[i] }));
+  const col = role => s.columns.find(c => c.role === role).id;
+  s.tasks = [
+    { id: 1, title: 'w', open: true, column_id: col('in_progress'), swimlane_id: 1, owner_id: 1, position: 1, score: 0,
+      date_moved: NOW - 7 * DAY, date_completed: null, tags: [], blocked_by: [], subtasks: [{ status: 2, position: 1, user_id: 1 }, { status: 0, position: 2, user_id: 1 }], comments: [] },
+    { id: 2, title: 'd', open: true, column_id: col('done'), swimlane_id: 1, owner_id: 2, position: 1, score: 0,
+      date_moved: NOW, date_completed: null, tags: [], blocked_by: [], subtasks: [{ status: 0, position: 1, user_id: 1 }], comments: [] }
+  ];
+  return s;
+}
+
+test('roles: a default Work in progress board places cars and debris', () => {
+  const m = C.build(board(['Backlog', 'Ready', 'Work in progress', 'Done'], [null, null, 'in_progress', 'done']));
+  assert.equal(m.cars.find(c => c.userId === 1).taskId, 1);
+  assert.equal(m.cars.find(c => c.userId === 1).inPits, false);
+  assert.deepEqual(hazardsOf(m, 'debris').map(h => h.taskId), [1]);
+  assert.deepEqual(hazardsOf(m, 'pothole').map(h => h.taskId), [2]);
+  assert.deepEqual(m.segments.map(g => g.taskId), [2, 1], 'done-role work runs first, then in progress');
+});
+
+test('roles: renamed columns use the position fallback roles', () => {
+  const m = C.build(board(['Todo', 'Building', 'Shipped'], [null, 'in_progress', 'done']));
+  assert.equal(m.cars.find(c => c.userId === 1).taskId, 1);
+  assert.deepEqual(hazardsOf(m, 'debris').map(h => h.taskId), [1]);
+  assert.deepEqual(hazardsOf(m, 'pothole').map(h => h.taskId), [2]);
+});
+
+test('roles: a column titled In progress without the role places no car', () => {
+  const s = board(['In progress', 'Doing', 'Done'], [null, 'in_progress', 'done']);
+  s.tasks[0].column_id = 1;
+  const m = C.build(s);
+  assert.equal(m.cars.find(c => c.userId === 1).inPits, true);
+  assert.deepEqual(hazardsOf(m, 'debris'), []);
 });
 
 test('recent spectators', () => {
