@@ -14,17 +14,15 @@ class RaceShareController extends BaseController
 
     public function show(): void
     {
-        $token = $this->token();
-        $mode = $this->allowedMode($token);
+        [$projectId, $mode] = $this->share() ?? [null, null];
         if ($mode === null) {
             return;
         }
-        $settings = new RaceSettings($this->container);
         $this->response->html($this->template->render('Chicane:race/page', [
             'title' => t('Race track'),
-            'config' => $settings->pageConfig(
-                (int) $settings->projectIdForToken($token),
-                $this->helper->url->to('RaceShareController', 'state', ['plugin' => 'Chicane', 'token' => $token]),
+            'config' => (new RaceSettings($this->container))->pageConfig(
+                $projectId,
+                $this->helper->url->to('RaceShareController', 'state', ['plugin' => 'Chicane', 'token' => $this->token()]),
                 $mode === 'map_only'
             ),
         ]));
@@ -33,13 +31,12 @@ class RaceShareController extends BaseController
     // map_only is redacted here, on the server; the ETag is taken from what is actually sent.
     public function state(): void
     {
-        $token = $this->token();
-        $mode = $this->allowedMode($token);
+        [$projectId, $mode] = $this->share() ?? [null, null];
         if ($mode === null) {
             return;
         }
         $model = new RaceStateModel($this->container);
-        $state = $this->buildState($model, $token);
+        $state = $model->build($projectId, (new RaceSettings($this->container))->get($projectId)['window_days']);
         if ($mode === 'map_only') {
             $state = RaceRedactor::mapOnly($state);
         }
@@ -48,24 +45,13 @@ class RaceShareController extends BaseController
 
     public function summary(): void
     {
-        $token = $this->token();
-        $mode = $this->allowedMode($token);
+        [$projectId, $mode] = $this->share() ?? [null, null];
         if ($mode === null) {
             return;
         }
-        $units = (new RaceSettings($this->container))->get($this->projectId($token))['units'];
-        $this->sendJson(RaceSummary::build($this->buildState(new RaceStateModel($this->container), $token), $mode, $units));
-    }
-
-    private function buildState(RaceStateModel $model, string $token): array
-    {
-        $projectId = $this->projectId($token);
-        return $model->build($projectId, (new RaceSettings($this->container))->get($projectId)['window_days']);
-    }
-
-    private function projectId(string $token): int
-    {
-        return (int) (new RaceSettings($this->container))->projectIdForToken($token);
+        $settings = (new RaceSettings($this->container))->get($projectId);
+        $state = (new RaceStateModel($this->container))->build($projectId, $settings['window_days']);
+        $this->sendJson(RaceSummary::build($state, $mode, $settings['units']));
     }
 
     private function token(): string
@@ -73,12 +59,17 @@ class RaceShareController extends BaseController
         return $this->request->getStringParam('token');
     }
 
-    private function allowedMode(string $token): ?string
+    // Resolves the token once: [project id, share mode], or null after sending 404.
+    /** @return array{int, string}|null */
+    private function share(): ?array
     {
-        $mode = (new RaceSettings($this->container))->shareMode($token);
+        $settings = new RaceSettings($this->container);
+        $projectId = $settings->projectIdForToken($this->token());
+        $mode = $projectId === null ? null : $settings->shareModeOf($projectId);
         if ($mode === null) {
             $this->response->status(404);
+            return null;
         }
-        return $mode;
+        return [$projectId, $mode];
     }
 }

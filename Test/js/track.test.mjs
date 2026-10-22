@@ -214,7 +214,7 @@ test('progress matches the PHP RaceSummary frozen total', () => {
 test('unit totals match the PHP summary in both modes', () => {
   const units = (state, mode) => { const t = C.build(state, { mode }); return [t.totalUnits, t.doneUnits]; };
   assert.deepEqual(units(small(), 'subtask'), [7, 3]);
-  assert.deepEqual(units(small(), 'complexity'), [7, 5]);
+  assert.deepEqual(units(small(), 'complexity'), [7, 3]);
 
   const s = small();
   s.tasks = [
@@ -222,5 +222,21 @@ test('unit totals match the PHP summary in both modes', () => {
     Object.assign({}, s.tasks[1], { id: 2, open: true, score: 4, subtasks: [{ status: 2, position: 1, user_id: 1 }, { status: 0, position: 2, user_id: 1 }] }),
   ];
   assert.deepEqual(units(s, 'subtask'), [3, 1]);
-  assert.deepEqual(units(s, 'complexity'), [9, 8]);
+  assert.deepEqual(units(s, 'complexity'), [9, 2]);
+});
+
+// Complexity: n = max(1, score, subtasks); with subtasks, floor(n * done / subtasks) units are done, open or
+// closed; with none, all n when closed, else 0. RaceSummaryTest::complexityParity pins the same cases.
+test('complexity units scale done subtasks to the score', () => {
+  const one = (open, subs, done) => {
+    const s = small();
+    s.tasks = [Object.assign({}, s.tasks[0], { id: 1, open, score: 5,
+      subtasks: Array.from({ length: subs }, (_, i) => ({ status: i < done ? 2 : 0, position: i + 1, user_id: 1 })) })];
+    const t = C.build(s, { mode: 'complexity' });
+    return [t.doneUnits, t.totalUnits - t.doneUnits];
+  };
+  assert.deepEqual(one(true, 3, 1), [1, 4]);
+  assert.deepEqual(one(false, 2, 1), [2, 3]);
+  assert.deepEqual(one(true, 0, 0), [0, 5]);
+  assert.deepEqual(one(false, 0, 0), [5, 0]);
 });

@@ -95,10 +95,12 @@ class RaceSettings extends Base
     public function shareMode(string $token): ?string
     {
         $projectId = $this->projectIdForToken($token);
-        if ($projectId === null) {
-            return null;
-        }
+        return $projectId === null ? null : $this->shareModeOf($projectId);
+    }
 
+    // Public share mode for a project whose token is already resolved.
+    public function shareModeOf(int $projectId): ?string
+    {
         return RaceGate::decide($this->visibilityOf($projectId), false, true);
     }
 

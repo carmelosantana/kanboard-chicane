@@ -76,11 +76,31 @@ class RaceSettingsControllerTest extends Base
 
         $this->useRequest(['REQUEST_METHOD' => 'GET'], ['token' => $token], []);
         (new RaceShareController($this->container))->summary();
-        $summary = json_decode($this->container['response']->body, true);
+        $body = $this->container['response']->body;
+        $summary = json_decode($body, true);
 
-        // One open task, score 5, no subtasks: 5 units, 1 still open (track.js complexity rule).
-        $this->assertSame(1, $summary['distance_to_finish']);
-        $this->assertEquals(80.0, $summary['progress_pct']); // JSON drops the .0
+        // One open task, score 5, no subtasks: 5 units, none done until it closes.
+        $this->assertSame(5, $summary['distance_to_finish']);
+        $this->assertStringContainsString('"progress_pct":0.0', $body);
+    }
+
+    // The token is resolved once per request; unknown tokens and unshared projects 404 on every share route.
+    public function testShareRoutesResolveTheTokenOrNotFound(): void
+    {
+        $token = $this->settings->get($this->pid)['token'];
+        foreach (['show', 'state', 'summary'] as $action) {
+            foreach ([[$token, 'members'], [str_repeat('0', 64), 'public']] as [$probe, $visibility]) {
+                $this->settings->save($this->pid, ['visibility' => $visibility]);
+                $this->useRequest(['REQUEST_METHOD' => 'GET'], ['token' => $probe], []);
+                (new RaceShareController($this->container))->$action();
+                $this->assertSame(404, $this->container['response']->code, $action.' '.$visibility);
+            }
+        }
+
+        $this->settings->save($this->pid, ['visibility' => 'map_only']);
+        $this->useRequest(['REQUEST_METHOD' => 'GET'], ['token' => $token], []);
+        (new RaceShareController($this->container))->state();
+        $this->assertSame($this->pid, json_decode($this->container['response']->body, true)['project_id']);
     }
 
     private function post(array $values): void
@@ -114,7 +134,9 @@ class RaceSettingsControllerTest extends Base
         // Records the body instead of calling header(), which PHPUnit's CLI output turns into an error.
         $this->container['response'] = new class($this->container) extends Response {
             public string $body = '';
+            public int $code = 200;
             public function withBody($body) { $this->body = $body; return parent::withBody($body); }
+            public function status($statusCode) { $this->code = $statusCode; }
             public function send() {}
         };
     }

@@ -28,8 +28,9 @@ Project managers open **Project → Race track** in the project sidebar.
 **Units** decide how far the course is, for the track, the HUD and the summary alike:
 
 - `subtask`: each subtask is one unit, and a task with no subtasks is one unit.
-- `complexity`: each task is `max(1, score, subtask count)` units. A closed task counts all its units as
-  done; an open task leaves its open subtasks (or one unit, if it has none) still to drive.
+- `complexity`: each task is `n = max(1, score, subtask count)` units. With subtasks, the done share is
+  `floor(n × done subtasks ÷ subtasks)`, whether the task is open or closed, so a task closed with
+  unfinished subtasks still has road to drive. With no subtasks, all `n` are done once the task closes.
 
 When visibility is `public` or `map_only`, the settings page shows the share link and the summary link as
 read-only fields to copy. **Replace share link** issues a new token, and the old link stops working at once.
@@ -80,7 +81,7 @@ since your last visit; that last-seen state is kept in your browser's `localStor
 | Key | Meaning |
 |---|---|
 | `project_id` | the project's id |
-| `progress_pct` | units done ÷ all units, as a percentage with one decimal |
+| `progress_pct` | units done ÷ all units, as a percentage rounded to one decimal (always a number with a decimal point, e.g. `80.0`) |
 | `distance_to_finish` | units still to drive (the HUD's "units to the flag") |
 | `cars` | one entry per member with an open task in **In progress**: `user` is the name, `task_id` that task |
 | `updated_at` | Unix time the state was built |
@@ -96,7 +97,7 @@ Chicane reads from sibling plugins when they are installed and loaded, and works
 | Presence | online cars glow, offline cars dim | cars render neutral (`online` is `null`) |
 | Agents | agent livery and a bot badge on agent-driven cars | `agent_uids` is `[]` |
 | TimeReport | level and XP plate from tracked time in the window | the plate is hidden |
-| DependencyPlugin | blocked tasks marked with a barrier and a yellow flag | core "is blocked by" links still mark them |
+| DependencyPlugin | a UI for managing "is blocked by" links between tasks | add the links in Kanboard's own task links; the track reads those core links either way and marks blocked cars with a barrier and a yellow flag |
 
 A feed whose query fails is logged and left absent; the track still renders.
 

@@ -49,10 +49,14 @@
       var subs = t.subtasks.slice().sort(function (a, b) { return a.position - b.position; });
       var units;
       if (mode === 'complexity') {
+        // n units scaled from the subtasks, open or closed (so a closed task's unfinished share stays undone
+        // but paved, as in subtask mode); with no subtasks, all n are done once the task closes.
         var n = Math.max(1, t.score || 0, subs.length);
-        var openN = t.open ? (subs.length ? subs.filter(function (s) { return s.status !== SUBTASK_DONE; }).length : 1) : 0;
+        var doneN = subs.length
+          ? Math.floor(n * subs.filter(function (s) { return s.status === SUBTASK_DONE; }).length / subs.length)
+          : (t.open ? 0 : n);
         units = [];
-        for (var i = 0; i < n; i++) units.push({ done: i < n - openN });
+        for (var i = 0; i < n; i++) units.push({ done: i < doneN, paved: !t.open });
       } else if (!subs.length) {
         units = [{ done: !t.open, sweeper: true }];
       } else {

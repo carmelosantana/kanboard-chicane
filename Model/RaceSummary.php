@@ -3,8 +3,9 @@ namespace Kanboard\Plugin\Chicane\Model;
 
 // The Chat summary of a race state, counting units exactly as track.js orderTasks does for the project's
 // chicane.units. subtask: each subtask is 1, a task with none is 1; done is a subtask with status 2, or a
-// closed task with none (a closed task's open subtasks stay undone). complexity: max(1, score, subtasks)
-// per task; a closed task is all done, an open one leaves its open subtasks (1 if it has none) undone.
+// closed task with none (a closed task's open subtasks stay undone). complexity: n = max(1, score, subtasks)
+// per task; with subtasks, floor(n * done subtasks / subtasks) are done, open or closed; with none, n when
+// closed, else 0.
 final class RaceSummary
 {
     private const IN_PROGRESS = 'In progress';
@@ -43,8 +44,10 @@ final class RaceSummary
     {
         $subtasks = count($task['subtasks']);
         $units = max(1, (int) ($task['score'] ?? 0), $subtasks);
-        $open = ! $task['open'] ? 0 : ($subtasks > 0 ? $subtasks - self::doneSubtasks($task) : 1);
-        return [$units, $units - $open];
+        if ($subtasks > 0) {
+            return [$units, intdiv($units * self::doneSubtasks($task), $subtasks)];
+        }
+        return [$units, $task['open'] ? 0 : $units];
     }
 
     private static function doneSubtasks(array $task): int
