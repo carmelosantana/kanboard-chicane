@@ -122,6 +122,22 @@ class RaceFeedsTest extends Base
         $this->assertSame([$this->bob], $state['agent_uids']);
     }
 
+    // A sibling plugin built against a different core (or Chicane) can fail with an Error, not an
+    // SQLException: that feed is left absent and the others still apply.
+    public function testFeedThatThrowsATypeErrorIsLeftAbsent(): void
+    {
+        unset($this->container['projectUserRoleModel']);
+        $this->container['projectUserRoleModel'] = new class {
+            public function getAllUsers($projectId): array { return null; }
+        };
+        (new AgentTable($this->container))->insert($this->alice, $this->bob, 'claude');
+
+        $state = $this->apply(fn (string $plugin) => in_array($plugin, ['Presence', 'Agents'], true));
+
+        $this->assertNull($this->users($state)[$this->alice]['online']);
+        $this->assertSame([$this->bob], $state['agent_uids']);
+    }
+
     // The default check asks Kanboard's plugin loader; a plugin whose class autoloads but that the
     // loader did not load (disabled or incompatible) counts as absent. build() applies the feeds.
     public function testBuildAppliesFeedsForLoadedPluginsOnly(): void

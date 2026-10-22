@@ -116,7 +116,7 @@ Chicane reads from sibling plugins when they are installed and loaded, and works
 | TimeReport | level and XP plate from tracked time in the window | the plate is hidden |
 | DependencyPlugin | a UI for managing "is blocked by" links between tasks | add the links in Kanboard's own task links; the track reads those core links either way and marks blocked cars with a barrier and a yellow flag |
 
-A feed whose query fails is logged and left absent; the track still renders.
+A feed that fails, whether its query or a mismatched plugin version, is logged and left absent; the track still renders.
 
 ## Content Security Policy
 

@@ -2,11 +2,11 @@
 namespace Kanboard\Plugin\Chicane\Model;
 
 use Kanboard\Core\Base;
-use PicoDb\SQLException;
 
 // Optional data from sibling plugins: Presence (online), Agents (agent_uids) and TimeReport (xp, level).
 // A plugin counts only when Kanboard's loader loaded it and its class autoloads; otherwise its fields keep
-// their "absent" values (null, or [] for agent_uids). A feed that fails in SQL is logged and left absent.
+// their "absent" values (null, or [] for agent_uids). A feed that throws anything (SQL, or a TypeError from a
+// mismatched plugin version) is logged and left absent.
 class RaceFeeds extends Base
 {
     private const PRESENCE = 'Kanboard\\Plugin\\Presence\\Model\\PresenceModel';
@@ -56,7 +56,7 @@ class RaceFeeds extends Base
         return $state;
     }
 
-    /** @return mixed|null the reader's result, or null when the plugin is absent or its query fails */
+    /** @return mixed|null the reader's result, or null when the plugin is absent or its reader throws */
     private function feed(string $plugin, string $class, callable $read)
     {
         if (! ($this->isLoaded)($plugin) || ! class_exists($class, true)) {
@@ -64,7 +64,7 @@ class RaceFeeds extends Base
         }
         try {
             return $read($class);
-        } catch (SQLException $e) {
+        } catch (\Throwable $e) {
             $this->logger->error('Chicane: '.$plugin.' feed failed: '.$e->getMessage());
             return null;
         }
