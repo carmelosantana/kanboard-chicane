@@ -1,0 +1,4 @@
+/* Chicane race page: a full-window canvas, no page chrome. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #24461f; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
