@@ -90,6 +90,43 @@ class RaceSettingsTest extends Base
         $this->assertSame('/race/t/state.json', $config['stateUrl']);
     }
 
+    public function testTokenLookupNeedsSixtyFourLowercaseHexCharacters(): void
+    {
+        foreach (['abc', str_repeat('A', 64), str_repeat('g', 64), str_repeat('a', 63), str_repeat('a', 65), str_repeat('a', 64)."\n"] as $bad) {
+            $this->container['projectMetadataModel']->save($this->pid, [RaceSettings::META_TOKEN => $bad]);
+            $this->assertNull($this->settings->projectIdForToken($bad), var_export($bad, true));
+        }
+    }
+
+    public function testTokenHeldByTwoProjectsResolvesToNeither(): void
+    {
+        $token = $this->settings->get($this->pid)['token'];
+        $other = (new ProjectModel($this->container))->create(['name' => 'Other']);
+        $this->container['projectMetadataModel']->save($other, [RaceSettings::META_TOKEN => $token]);
+
+        $this->assertNull($this->settings->projectIdForToken($token));
+    }
+
+    // Duplicating a project with its metadata copies chicane.token; the clone must not share the link.
+    public function testDuplicatedProjectGetsItsOwnToken(): void
+    {
+        $token = $this->settings->get($this->pid)['token'];
+        $this->assertTrue($this->settings->save($this->pid, ['visibility' => 'public']));
+        $clone = (int) $this->container['projectDuplicationModel']->duplicate($this->pid, ['projectMetadataModel']);
+        $this->assertGreaterThan($this->pid, $clone);
+        $this->assertSame($token, $this->container['projectMetadataModel']->get($clone, RaceSettings::META_TOKEN), 'core copies the token');
+
+        $cloneToken = $this->settings->get($clone)['token'];
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $cloneToken);
+        $this->assertNotSame($token, $cloneToken);
+        $this->assertSame($this->pid, $this->settings->projectIdForToken($token));
+        $this->assertSame('full', $this->settings->shareMode($token));
+        $this->assertSame($clone, $this->settings->projectIdForToken($cloneToken));
+        $this->assertSame($token, $this->settings->get($this->pid)['token'], 'the original keeps its link');
+        $this->assertSame($cloneToken, $this->settings->get($clone)['token'], 'the new token is stable');
+    }
+
     private function failingSettings(): RaceSettings
     {
         $this->container['projectMetadataModel'] = new class($this->container) extends \Kanboard\Model\ProjectMetadataModel {

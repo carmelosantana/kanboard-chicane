@@ -14,6 +14,7 @@ class RaceSettings extends Base
     public const META_WINDOW = 'chicane.window_days';
     public const META_UNITS = 'chicane.units';
 
+    private const TOKEN_PATTERN = '/^[0-9a-f]{64}$/D';
     private const DEFAULT_WINDOW = 30;
     private const MIN_WINDOW = 1;
     private const MAX_WINDOW = 365;
@@ -23,7 +24,8 @@ class RaceSettings extends Base
     {
         $meta = $this->projectMetadataModel->getAll($projectId);
         $token = (string) ($meta[self::META_TOKEN] ?? '');
-        if ($token === '') {
+        // Duplicating a project with its metadata copies the token: the copy (higher id) gets a new one.
+        if ($token === '' || $this->heldByLowerProject($token, $projectId)) {
             $token = $this->rotateToken($projectId);
         }
 
@@ -78,17 +80,27 @@ class RaceSettings extends Base
         return $token;
     }
 
+    // Fails closed: a malformed token, or one more than one project holds, resolves to no project.
     public function projectIdForToken(string $token): ?int
     {
-        if ($token === '') {
+        if (preg_match(self::TOKEN_PATTERN, $token) !== 1) {
             return null;
         }
-        $id = $this->db->table('project_has_metadata')
-            ->eq('name', self::META_TOKEN)
-            ->eq('value', $token)
-            ->findOneColumn('project_id');
+        $ids = $this->tokenHolders($token)->limit(2)->findAllByColumn('project_id');
 
-        return $id ? (int) $id : null;
+        return count($ids) === 1 ? (int) $ids[0] : null;
+    }
+
+    private function heldByLowerProject(string $token, int $projectId): bool
+    {
+        return $this->tokenHolders($token)->lt('project_id', $projectId)->exists();
+    }
+
+    private function tokenHolders(string $token)
+    {
+        return $this->db->table('project_has_metadata')
+            ->eq('name', self::META_TOKEN)
+            ->eq('value', $token);
     }
 
     // Public share mode for a token: 'full' (public), 'map_only', or null (no public access).

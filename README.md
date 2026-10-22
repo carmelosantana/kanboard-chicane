@@ -34,6 +34,8 @@ Project managers open **Project → Race track** in the project sidebar.
 
 When visibility is `public` or `map_only`, the settings page shows the share link and the summary link as
 read-only fields to copy. **Replace share link** issues a new token, and the old link stops working at once.
+A project duplicated with its metadata gets a token of its own the first time its settings are read, and
+the original keeps its link; a token that more than one project holds opens nothing.
 
 ## Columns
 
