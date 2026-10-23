@@ -68,6 +68,16 @@ test('saveLast keeps only the newest 3 chicane:last entries and leaves other key
   assert.deepEqual(s.keys(), ['chicane:last:/r3', 'chicane:last:/r5', 'chicane:last:/r6', 'other:thing']);
 });
 
+test('a full store of old entries is pruned to make room for the new one', () => {
+  const s = memoryStorage();
+  for (let i = 0; i < 5; i++) s.setItem('chicane:last:/old' + i, JSON.stringify({ etag: '"o"', state: {} }));
+  const set = s.setItem.bind(s);
+  s.setItem = (k, v) => { if (s.keys().length >= 5) throw new Error('QuotaExceededError'); set(k, v); };
+  L.saveLast(s, 'chicane:last:/new', { etag: '"n"', state: {} }, 9);
+  assert.equal(L.loadLast(s, 'chicane:last:/new').etag, '"n"');
+  assert.equal(s.keys().filter((k) => k.startsWith('chicane:last:')).length, 3);
+});
+
 test('pruning survives storage that throws on any call', () => {
   const s = memoryStorage();
   s.key = () => { throw new Error('SecurityError'); };

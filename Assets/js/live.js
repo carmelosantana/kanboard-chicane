@@ -18,12 +18,19 @@
   // Saves {saved, etag, state}, then keeps only the KEEP most recently saved chicane:last entries (one per
   // board link), so links opened once do not pile up. Entries without a readable time go first.
   function saveLast(storage, key, entry, now) {
+    var json;
     try {
-      storage.setItem(key, JSON.stringify({ saved: now === undefined ? Date.now() : now, etag: entry.etag, state: entry.state }));
-    } catch (e) { return; /* full, blocked or private: no replay */ }
-    prune(storage);
+      json = JSON.stringify({ saved: now === undefined ? Date.now() : now, etag: entry.etag, state: entry.state });
+      storage.setItem(key, json);
+    } catch (e) {
+      // Full (often of older entries): make room and try once more; blocked or private: no replay.
+      if (json === undefined) return;
+      prune(storage, KEEP - 1);
+      try { storage.setItem(key, json); } catch (e2) { return; }
+    }
+    prune(storage, KEEP);
   }
-  function prune(storage) {
+  function prune(storage, keep) {
     try {
       var entries = [];
       for (var i = 0; i < storage.length; i++) {
@@ -34,7 +41,7 @@
         }
       }
       entries.sort(function (a, b) { return b.saved - a.saved; });
-      entries.slice(KEEP).forEach(function (x) { storage.removeItem(x.key); });
+      entries.slice(keep).forEach(function (x) { storage.removeItem(x.key); });
     } catch (e) { /* storage refused: leave it as it is */ }
   }
   function visible() { return document.visibilityState !== 'hidden'; }
