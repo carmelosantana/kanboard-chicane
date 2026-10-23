@@ -127,6 +127,19 @@ class RaceSettingsTest extends Base
         $this->assertSame($cloneToken, $this->settings->get($clone)['token'], 'the new token is stable');
     }
 
+    // Rotating the original before the clone's settings are read must not hand the revoked link to the clone.
+    public function testRotatingRetiresTheOldTokenOnEveryHolder(): void
+    {
+        $token = $this->settings->get($this->pid)['token'];
+        $this->assertTrue($this->settings->save($this->pid, ['visibility' => 'public']));
+        $clone = (int) $this->container['projectDuplicationModel']->duplicate($this->pid, ['projectMetadataModel']);
+
+        $this->settings->rotateToken($this->pid);
+
+        $this->assertNull($this->settings->projectIdForToken($token));
+        $this->assertNotSame($token, $this->container['projectMetadataModel']->get($clone, RaceSettings::META_TOKEN));
+    }
+
     private function failingSettings(): RaceSettings
     {
         $this->container['projectMetadataModel'] = new class($this->container) extends \Kanboard\Model\ProjectMetadataModel {

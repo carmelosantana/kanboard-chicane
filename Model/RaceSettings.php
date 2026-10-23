@@ -26,7 +26,7 @@ class RaceSettings extends Base
         $token = (string) ($meta[self::META_TOKEN] ?? '');
         // Duplicating a project with its metadata copies the token: the copy (higher id) gets a new one.
         if ($token === '' || $this->heldByLowerProject($token, $projectId)) {
-            $token = $this->rotateToken($projectId);
+            $token = $this->writeToken($projectId);
         }
 
         return [
@@ -71,7 +71,20 @@ class RaceSettings extends Base
     }
 
     // Throws when the write fails: the token gates public access, so an unpersisted one is never returned.
+    // Any other project still holding the old token (a duplicate) is moved off it too, so the revoked link opens nothing.
     public function rotateToken(int $projectId): string
+    {
+        $old = (string) $this->projectMetadataModel->get($projectId, self::META_TOKEN, '');
+        $token = $this->writeToken($projectId);
+        if ($old !== '') {
+            foreach ($this->tokenHolders($old)->neq('project_id', $projectId)->findAllByColumn('project_id') as $other) {
+                $this->writeToken((int) $other);
+            }
+        }
+        return $token;
+    }
+
+    private function writeToken(int $projectId): string
     {
         $token = bin2hex(random_bytes(32));
         if (! $this->projectMetadataModel->save($projectId, [self::META_TOKEN => $token])) {
