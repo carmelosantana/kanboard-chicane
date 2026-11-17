@@ -10,7 +10,7 @@ through an unguessable link, with or without task details.
 
 ## Install
 
-Download `Chicane-1.0.0.zip` from the releases page, or install it from ModMenu, and unzip it into
+Download `Chicane-1.0.1.zip` from the releases page, or install it from ModMenu, and unzip it into
 `plugins/Chicane/` (the zip's single top-level folder is `Chicane`). There is no schema: settings live in
 project metadata. Requires Kanboard `>=1.2.47` and PHP `>=8.4`.
 
@@ -115,7 +115,7 @@ Chicane reads from sibling plugins when they are installed and loaded, and works
 | Presence | online cars glow, offline cars dim | cars render neutral (`online` is `null`) |
 | Agents | agent livery and a bot badge on agent-driven cars | `agent_uids` is `[]` |
 | TimeReport | level and XP plate from tracked time in the window | the plate is hidden |
-| DependencyPlugin | a UI for managing "is blocked by" links between tasks | add the links in Kanboard's own task links; the track reads those core links either way and marks blocked cars with a barrier and a yellow flag |
+| DependencyPlugin | a UI for managing "is blocked by" links between tasks | add the links in Kanboard's own task links; the track reads those core links either way and marks blocked cars with a barrier and a yellow flag while a blocker is still open |
 
 A feed that fails, whether its query or a mismatched plugin version, is logged and left absent; the track still renders.
 
