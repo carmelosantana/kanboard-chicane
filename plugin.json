@@ -1,7 +1,7 @@
 {
     "name": "Chicane",
     "description": "Watch a project as a race track: each task is a corner, a task with subtasks is a chicane, and the cars are the people working on them. Finished road is paved; stalled work leaves hazards. Private by default, with optional share links.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "Carmelo Santana",
     "homepage": "https://github.com/carmelosantana/kanboard-chicane",
     "license": "MIT",

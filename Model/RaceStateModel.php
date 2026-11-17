@@ -121,6 +121,7 @@ class RaceStateModel extends Base
         return $grouped;
     }
 
+    // Open blockers only: a task whose blocker has closed is no longer blocked.
     private function blockers(array $taskIds): array
     {
         if ($taskIds === []) {
@@ -130,7 +131,9 @@ class RaceStateModel extends Base
         $rows = $this->db->table('task_has_links')
             ->columns('task_has_links.task_id', 'task_has_links.opposite_task_id')
             ->join('links', 'id', 'link_id')
+            ->join('tasks', 'id', 'opposite_task_id')
             ->eq('links.label', self::BLOCKED_BY)
+            ->eq('tasks.is_active', 1)
             ->in('task_has_links.task_id', $taskIds)
             ->asc('task_has_links.opposite_task_id')
             ->findAll();

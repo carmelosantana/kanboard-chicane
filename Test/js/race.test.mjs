@@ -49,3 +49,23 @@ test('tracked tweens stay bounded over many completed zooms', () => {
   for (let i = 0; i < 1000; i++) { const t = fakeTween(); track(set, t); t.fire(i % 2 ? 'onComplete' : 'onInterrupt'); }
   assert.equal(set.size, 0);
 });
+
+// Pixi 8 falls back to its canvas renderer when there is no WebGL; that renderer has no mesh pipe, so the
+// road would throw on every frame and the page would stay blank. mount() rejects instead, so live.js can
+// show "Could not start the renderer".
+test('mount rejects when Pixi falls back to the canvas renderer', async () => {
+  let destroyed = false;
+  class Application {
+    init() { this.renderer = { type: 4, name: 'canvas' }; return Promise.resolve(); }
+    destroy() { destroyed = true; }
+  }
+  const pixi = { extensions: { add() {} }, Application, RendererType: { WEBGL: 1, WEBGPU: 2, CANVAS: 4 } };
+  const w = { PIXI: pixi, gsap: { ticker: { lagSmoothing() {} } }, Chicane: {}, devicePixelRatio: 1 };
+  new Function('window', 'document', src)(w, { readyState: 'complete', getElementById: () => null });
+  const pt = (x) => ({ x, y: 0, seg: 0, kind: 'straight', done: true });
+  const model = { roadWidth: 38, laneWidth: 26, lanes: [], path: { points: [pt(0), pt(4), pt(8)], length: 8 }, progressS: 0, cars: [], spectators: [] };
+  const appended = [];
+  await assert.rejects(w.ChicaneRace.mount({ appendChild: (c) => appended.push(c) }, model, {}), /WebGL/);
+  assert.equal(destroyed, true);
+  assert.deepEqual(appended, []);
+});

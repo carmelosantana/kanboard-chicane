@@ -205,6 +205,22 @@ class RaceStateModelTest extends Base
         $this->assertSame([], $this->byId($state, $b)['blocked_by']);
     }
 
+    // A blocker that is already closed no longer blocks: only open blockers are listed.
+    public function testClosedBlockerNoLongerBlocks(): void
+    {
+        $a = $this->task('A');
+        $open = $this->task('open blocker');
+        $closed = $this->task('closed blocker');
+        $blockedBy = (int) $this->container['linkModel']->getByLabel('is blocked by')['id'];
+        $this->container['taskLinkModel']->create($a, $open, $blockedBy);
+        $this->container['taskLinkModel']->create($a, $closed, $blockedBy);
+        $this->container['taskStatusModel']->close($closed);
+
+        $state = $this->model()->build($this->projectId, 30);
+
+        $this->assertSame([$open], $this->byId($state, $a)['blocked_by']);
+    }
+
     public function testReopenedFromActivity(): void
     {
         $taskId = $this->task('reopened');
