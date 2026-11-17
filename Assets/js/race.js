@@ -907,6 +907,14 @@
     var app = S.app = new P.Application(), mine = S;
     return app.init({ preference: 'webgl', resizeTo: window, antialias: true, resolution: window.devicePixelRatio || 1, autoDensity: true, background: 0x24461f }).then(function () {
       if (S !== mine) { app.destroy(true); return; } // destroyed or remounted while initialising
+      // Without WebGL, Pixi falls back to its canvas renderer, which cannot draw meshes (the road): reject so
+      // the page says so instead of throwing on every frame over a blank field.
+      var RT = P.RendererType || { WEBGL: 1, WEBGPU: 2 };
+      if (!(app.renderer.type & (RT.WEBGL | RT.WEBGPU))) {
+        var name = app.renderer.name;
+        S = null; app.destroy(true);
+        throw new Error('no WebGL: the ' + name + ' renderer cannot draw the track');
+      }
       stageEl.appendChild(app.canvas);
       S.atlas = atlasTexture(); S.glow = glowTexture();
       S.world = new P.Container(); app.stage.addChild(S.world);
