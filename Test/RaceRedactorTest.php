@@ -32,7 +32,9 @@ class RaceRedactorTest extends Base
         $this->assertSame(['CS', 'CO'], array_column($redacted['users'], 'name'));
         $this->assertSame(['', ''], array_column($redacted['users'], 'username'));
         $this->assertSame(['', '', '', ''], array_column($redacted['tasks'], 'title'));
-        $this->assertSame($fixture['columns'], $redacted['columns']);
+        $this->assertSame(['Column 1', 'Column 2', 'Column 3'], array_column($redacted['columns'], 'title'));
+        $this->assertSame(array_column($fixture['columns'], 'id'), array_column($redacted['columns'], 'id'));
+        $this->assertSame(array_column($fixture['columns'], 'position'), array_column($redacted['columns'], 'position'));
         $this->assertSame([null, 'in_progress', 'done'], array_column($redacted['columns'], 'role'));
         $this->assertSame($fixture['tasks'][1]['subtasks'], $redacted['tasks'][1]['subtasks']);
     }
@@ -67,7 +69,10 @@ class RaceRedactorTest extends Base
             'three words' => ['ada b lovelace', 'AB'],
             'extra spaces' => ['  Carmelo   Santana ', 'CS'],
             'multibyte' => ['élodie', 'ÉL'],
+            'punctuation' => ['beigebullet.com (local)', 'BC'],
+            'bracketed second word' => ['Bob (QA)', 'BQ'],
             'empty' => ['', '?'],
+            'only punctuation' => ['()', '?'],
             'blank' => ['   ', '?'],
         ];
     }
