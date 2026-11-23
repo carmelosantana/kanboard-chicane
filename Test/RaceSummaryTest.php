@@ -3,6 +3,7 @@ require_once 'tests/units/Base.php';
 
 use KanboardTests\units\Base;
 use Kanboard\Plugin\Chicane\Model\RaceSummary;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class RaceSummaryTest extends Base
 {
@@ -103,6 +104,7 @@ class RaceSummaryTest extends Base
     }
 
     /** @dataProvider carTaskParity */
+    #[DataProvider('carTaskParity')]
     public function testCarTaskMatchesTrackJs(int $lane, int $position, array $statuses, int $expected): void
     {
         $state = $this->fixture();
@@ -127,6 +129,7 @@ class RaceSummaryTest extends Base
     }
 
     /** @dataProvider complexityParity */
+    #[DataProvider('complexityParity')]
     public function testComplexityParity(bool $open, array $subtasks, int $undone, float $pct): void
     {
         $state = ['tasks' => [
