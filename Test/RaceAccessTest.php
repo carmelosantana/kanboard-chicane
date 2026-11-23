@@ -3,6 +3,7 @@ require_once 'tests/units/Base.php';
 
 use KanboardTests\units\Base;
 use Kanboard\Plugin\Chicane\Model\RaceGate;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class RaceAccessTest extends Base
 {
@@ -32,6 +33,7 @@ class RaceAccessTest extends Base
     }
 
     /** @dataProvider gateMatrix */
+    #[DataProvider('gateMatrix')]
     public function testGateMatrix(?string $visibility, bool $isMember, bool $viaToken, ?string $expected): void
     {
         $this->assertSame($expected, RaceGate::decide($visibility, $isMember, $viaToken));

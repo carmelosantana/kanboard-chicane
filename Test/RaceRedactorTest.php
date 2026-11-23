@@ -3,6 +3,7 @@ require_once 'tests/units/Base.php';
 
 use KanboardTests\units\Base;
 use Kanboard\Plugin\Chicane\Model\RaceRedactor;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class RaceRedactorTest extends Base
 {
@@ -78,6 +79,7 @@ class RaceRedactorTest extends Base
     }
 
     /** @dataProvider names */
+    #[DataProvider('names')]
     public function testInitials(string $name, string $expected): void
     {
         $this->assertSame($expected, RaceRedactor::initials($name));

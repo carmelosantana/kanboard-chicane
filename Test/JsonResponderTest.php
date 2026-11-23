@@ -4,6 +4,7 @@ require_once 'tests/units/Base.php';
 use KanboardTests\units\Base;
 use Kanboard\Plugin\Chicane\Controller\JsonResponder;
 use Kanboard\Plugin\Chicane\Model\Json;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class JsonResponderTest extends Base
 {
@@ -21,6 +22,7 @@ class JsonResponderTest extends Base
     }
 
     /** @dataProvider ifNoneMatch */
+    #[DataProvider('ifNoneMatch')]
     public function testEtagMatches(string $header, bool $expected): void
     {
         $probe = new class {
